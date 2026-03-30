@@ -1,0 +1,1289 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Code Generator · QR · Code 128</title>
+  <meta name="description"
+    content="Minimal code generator supporting QR Code (ECL-H) and Code 128 barcodes with high-resolution PNG export." />
+
+  <!-- Libraries -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/jsbarcode@3.11.6/dist/JsBarcode.all.min.js"></script>
+
+  <style>
+    /* ── System Font Stack (Apple-style) ── */
+    :root {
+      --font: -apple-system, "SF Pro Text", "SF Pro Display", BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
+      --bg: #FFFFFF;
+      --surface: #F5F5F7;
+      --surface-hover: #EBEBED;
+      --text: #1D1D1F;
+      --text-2: #6E6E73;
+      --text-3: #AEAEB2;
+      --radius-xl: 20px;
+      --radius-lg: 16px;
+      --radius-md: 12px;
+      --radius-pill: 980px;
+      --ease: cubic-bezier(0.25, 0.46, 0.45, 0.94);
+    }
+
+    /* ── RESET ── */
+    *,
+    *::before,
+    *::after {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    html {
+      scroll-behavior: smooth;
+    }
+
+    body {
+      font-family: var(--font);
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      overflow-x: hidden;
+    }
+
+    /* ── LAYOUT ── */
+    .wrapper {
+      max-width: 1080px;
+      margin: 0 auto;
+      padding: 64px 24px 96px;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+    }
+
+    /* ── HEADER ── */
+    header {
+      text-align: center;
+      margin-bottom: 60px;
+    }
+
+    h1 {
+      font-size: 28px;
+      font-weight: 600;
+      letter-spacing: 0.02em;
+      text-transform: uppercase;
+      color: var(--text);
+      margin-bottom: 8px;
+      line-height: 1.15;
+    }
+
+    .subtitle {
+      font-size: 13px;
+      font-weight: 400;
+      color: var(--text-2);
+      letter-spacing: normal;
+    }
+
+    /* ── MAIN GRID ── */
+    .main-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 48px;
+      flex: 1;
+      align-items: start;
+    }
+
+    @media (max-width: 768px) {
+      .main-grid {
+        grid-template-columns: 1fr;
+        gap: 40px;
+      }
+
+      header {
+        margin-bottom: 40px;
+      }
+
+      .wrapper {
+        padding: 48px 20px 80px;
+      }
+    }
+
+    /* ── INPUT PANEL ── */
+    .input-panel {
+      display: flex;
+      flex-direction: column;
+      gap: 24px;
+    }
+
+    /* ── MODE SELECTOR ── */
+    .mode-selector {
+      display: flex;
+      gap: 8px;
+      padding: 4px;
+      background: rgba(0, 0, 0, 0.05);
+      border-radius: var(--radius-pill);
+      width: fit-content;
+    }
+
+    .mode-btn {
+      padding: 8px 20px;
+      border: none;
+      border-radius: var(--radius-pill);
+      background: transparent;
+      color: var(--text);
+      font-family: var(--font);
+      font-size: 14px;
+      font-weight: 400;
+      cursor: pointer;
+      transition: all 300ms var(--ease);
+      white-space: nowrap;
+    }
+
+    .mode-btn:hover:not(.active) {
+      background: rgba(0, 0, 0, 0.04);
+    }
+
+    .mode-btn.active {
+      background: var(--text);
+      color: #FFFFFF;
+      font-weight: 500;
+    }
+
+    /* ── FIELD LABEL ── */
+    .field-label {
+      font-size: 12px;
+      font-weight: 400;
+      color: var(--text-2);
+      margin-bottom: 8px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .char-counter {
+      font-size: 12px;
+      font-weight: 400;
+      color: var(--text-3);
+      transition: color 300ms;
+    }
+
+    .char-counter.warn {
+      color: #FF9F0A;
+    }
+
+    .char-counter.over {
+      color: #FF3B30;
+    }
+
+    /* ── TEXTAREA ── */
+    textarea {
+      width: 100%;
+      min-height: 140px;
+      resize: vertical;
+      background: var(--surface);
+      border: none;
+      border-radius: var(--radius-md);
+      color: var(--text);
+      font-family: var(--font);
+      font-size: 15px;
+      font-weight: 400;
+      line-height: 1.6;
+      padding: 14px 16px;
+      outline: none;
+      transition: background 200ms var(--ease);
+    }
+
+    textarea::placeholder {
+      color: var(--text-3);
+    }
+
+    textarea:focus {
+      background: var(--surface-hover);
+    }
+
+    /* ── MODE OPTIONS ── */
+    .mode-options {
+      display: none;
+      flex-direction: column;
+      gap: 16px;
+    }
+
+    .mode-options.active {
+      display: flex;
+    }
+
+    /* Size selector */
+    .size-row {
+      display: flex;
+      gap: 8px;
+    }
+
+    .size-btn {
+      flex: 1;
+      padding: 9px 6px;
+      background: var(--surface);
+      border: none;
+      border-radius: var(--radius-md);
+      color: var(--text-2);
+      font-family: var(--font);
+      font-size: 13px;
+      font-weight: 400;
+      cursor: pointer;
+      transition: all 200ms var(--ease);
+      text-align: center;
+    }
+
+    .size-btn:hover {
+      background: var(--surface-hover);
+      color: var(--text);
+    }
+
+    .size-btn.active {
+      background: var(--text);
+      color: #FFFFFF;
+      font-weight: 500;
+    }
+
+    /* Color row */
+    .color-row {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+    }
+
+    .color-swatch {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      cursor: pointer;
+    }
+
+    .color-swatch input[type="color"] {
+      width: 32px;
+      height: 32px;
+      padding: 2px;
+      border-radius: 8px;
+      border: none;
+      background: var(--surface);
+      cursor: pointer;
+      appearance: none;
+      -webkit-appearance: none;
+    }
+
+    .color-swatch input[type="color"]::-webkit-color-swatch-wrapper {
+      padding: 1px;
+    }
+
+    .color-swatch input[type="color"]::-webkit-color-swatch {
+      border-radius: 4px;
+      border: none;
+    }
+
+    .color-swatch span {
+      font-size: 13px;
+      color: var(--text-2);
+      font-weight: 400;
+    }
+
+    /* ── iOS-style TOGGLE ── */
+    .toggle-row {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .toggle-label {
+      font-size: 13px;
+      color: var(--text-2);
+      cursor: pointer;
+      user-select: none;
+    }
+
+    .toggle-track {
+      position: relative;
+      width: 44px;
+      height: 26px;
+      border-radius: var(--radius-pill);
+      background: rgba(0, 0, 0, 0.12);
+      cursor: pointer;
+      transition: background 250ms var(--ease);
+      flex-shrink: 0;
+    }
+
+    .toggle-track.on {
+      background: var(--text);
+    }
+
+    .toggle-thumb {
+      position: absolute;
+      top: 3px;
+      left: 3px;
+      width: 20px;
+      height: 20px;
+      border-radius: 50%;
+      background: #FFFFFF;
+      transition: transform 250ms var(--ease);
+      box-shadow: 0 1px 3px rgba(0, 0, 0, 0.25);
+    }
+
+    .toggle-track.on .toggle-thumb {
+      transform: translateX(18px);
+    }
+
+    /* Info note */
+    .info-note {
+      font-size: 12px;
+      color: var(--text-3);
+      line-height: 1.5;
+    }
+
+    /* ── GENERATE BUTTON ── */
+    .btn-generate {
+      width: 100%;
+      padding: 14px 40px;
+      background: var(--text);
+      border: none;
+      border-radius: var(--radius-pill);
+      color: #FFFFFF;
+      font-family: var(--font);
+      font-size: 15px;
+      font-weight: 500;
+      cursor: pointer;
+      transition: background 250ms var(--ease);
+    }
+
+    .btn-generate:hover {
+      background: #3a3a3c;
+    }
+
+    .btn-generate:active {
+      background: #1D1D1F;
+    }
+
+    .btn-generate:disabled {
+      opacity: 0.45;
+      cursor: not-allowed;
+    }
+
+    /* ── TYPEWRITER ANIMATION ── */
+    #typewriter-text {
+      font-size: 15px;
+      font-weight: 400;
+      color: var(--text);
+      text-align: center;
+      min-height: 22px;
+      display: none;
+      margin-top: 2px;
+    }
+
+    #typewriter-text.visible {
+      display: block;
+    }
+
+    .tw-char {
+      display: inline;
+      opacity: 0;
+      transition: opacity 80ms ease;
+    }
+
+    .tw-char.shown {
+      opacity: 1;
+    }
+
+    /* ── OUTPUT PANEL ── */
+    .output-panel {
+      display: flex;
+      flex-direction: column;
+      gap: 20px;
+      position: sticky;
+      top: 24px;
+    }
+
+    /* ── CODE DISPLAY ── */
+    .code-display {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 260px;
+      border-radius: var(--radius-lg);
+      padding: 28px;
+      background: var(--surface);
+      position: relative;
+      overflow: hidden;
+      transition: all 400ms var(--ease);
+    }
+
+    .code-placeholder {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 12px;
+      color: var(--text-3);
+    }
+
+    .code-placeholder p {
+      font-size: 13px;
+      font-weight: 400;
+    }
+
+    #code-container {
+      opacity: 0;
+      transform: scale(0.96);
+      transition: opacity 400ms var(--ease), transform 400ms var(--ease);
+    }
+
+    #code-container.revealed {
+      opacity: 1;
+      transform: scale(1);
+    }
+
+    #code-container canvas,
+    #code-container img,
+    #code-container svg {
+      border-radius: 4px;
+      display: block;
+      max-width: 100%;
+      height: auto;
+    }
+
+    /* ── META CHIPS ── */
+    .code-meta {
+      display: none;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+
+    .code-meta.visible {
+      display: flex;
+    }
+
+    .chip {
+      font-size: 11px;
+      font-weight: 400;
+      padding: 5px 12px;
+      border-radius: var(--radius-pill);
+      background: var(--surface);
+      color: var(--text-2);
+    }
+
+    /* ── DOWNLOAD BUTTON ── */
+    .btn-download {
+      width: 100%;
+      padding: 13px 20px;
+      background: transparent;
+      border: 1px solid rgba(0, 0, 0, 0.15);
+      border-radius: var(--radius-pill);
+      color: var(--text);
+      font-family: var(--font);
+      font-size: 14px;
+      font-weight: 400;
+      cursor: pointer;
+      display: none;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      transition: background 200ms var(--ease), border-color 200ms var(--ease);
+    }
+
+    .btn-download:hover {
+      background: rgba(0, 0, 0, 0.04);
+    }
+
+    .btn-download .dl-icon {
+      stroke: currentColor;
+    }
+
+    .btn-download.visible {
+      display: flex;
+    }
+
+    /* ── FOOTER ── */
+    footer {
+      text-align: center;
+      margin-top: 80px;
+      font-size: 12px;
+      font-weight: 400;
+      color: var(--text-2);
+    }
+
+    /* ── PRINT ── */
+    @media print {
+      @page {
+        margin: 0;
+      }
+
+      body {
+        background: #FFFFFF;
+      }
+
+      nav,
+      header,
+      .input-panel,
+      .code-meta,
+      .btn-download,
+      footer {
+        display: none !important;
+      }
+
+      .wrapper {
+        padding: 0 !important;
+        margin: 0 !important;
+      }
+
+      .main-grid {
+        display: block !important;
+        margin: 0 !important;
+        gap: 0 !important;
+      }
+
+      .output-panel {
+        display: block !important;
+        position: static !important;
+        margin: 0 !important;
+        padding: 0 !important;
+      }
+
+      .code-display {
+        background: #FFFFFF !important;
+        border: none !important;
+        min-height: 100vh !important;
+        display: flex !important;
+        justify-content: center !important;
+        align-items: center !important;
+        box-shadow: none !important;
+      }
+
+      #code-container {
+        transform: scale(1) !important;
+      }
+
+      #code-container canvas,
+      #code-container img,
+      #code-container svg {
+        max-width: 80vw !important;
+        max-height: 80vh !important;
+      }
+
+      .code-placeholder {
+        display: none !important;
+      }
+    }
+
+    /* ── SCROLLBAR ── */
+    ::-webkit-scrollbar {
+      width: 6px;
+    }
+
+    ::-webkit-scrollbar-track {
+      background: transparent;
+    }
+
+    ::-webkit-scrollbar-thumb {
+      background: rgba(0, 0, 0, 0.12);
+      border-radius: 3px;
+    }
+
+    /* ── NAVBAR ── */
+    .navbar {
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      height: 52px;
+      background: rgba(255, 255, 255, 0.88);
+      border-bottom: 1px solid rgba(0, 0, 0, 0.08);
+      backdrop-filter: blur(20px);
+      -webkit-backdrop-filter: blur(20px);
+      z-index: 1000;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 24px;
+    }
+
+    .nav-brand {
+      font-size: 13px;
+      font-weight: 600;
+      letter-spacing: 0.1em;
+      color: #1D1D1F;
+      text-transform: uppercase;
+    }
+
+    .nav-tabs {
+      display: flex;
+      background: rgba(0, 0, 0, 0.05);
+      border-radius: 980px;
+      padding: 3px;
+    }
+
+    .nav-tab {
+      padding: 7px 18px;
+      border: none;
+      border-radius: 980px;
+      font-family: var(--font);
+      font-size: 13px;
+      font-weight: 400;
+      cursor: pointer;
+      text-decoration: none;
+      background: transparent;
+      color: #1D1D1F;
+      transition: background 200ms, color 200ms;
+      display: block;
+    }
+
+    .nav-tab.active {
+      background: #1D1D1F;
+      color: #FFFFFF;
+      font-weight: 500;
+    }
+
+    .nav-tab:not(.active):hover {
+      background: rgba(0, 0, 0, 0.04);
+    }
+
+    .nav-right {
+      font-size: 12px;
+      color: #6E6E73;
+    }
+  </style>
+</head>
+
+<body>
+
+<!-- ── ACCESS SCREEN ── -->
+<div id="access-screen" style="position:fixed;inset:0;width:100vw;height:100vh;background:#FFFFFF;z-index:9999;display:flex;align-items:center;justify-content:center;">
+  <div style="display:flex;flex-direction:column;align-items:center;gap:0;">
+    <div id="acc-hss" style="font-size:96px;font-weight:700;color:#1D1D1F;letter-spacing:-0.03em;line-height:1;opacity:0;transition:opacity 800ms ease;">HSS</div>
+    <div id="acc-sub" style="font-size:13px;font-weight:400;color:#6E6E73;letter-spacing:0.2em;text-transform:uppercase;margin-top:16px;opacity:0;transition:opacity 600ms ease;">HERMES STICKER SYSTEM</div>
+    <div id="acc-form" style="display:flex;flex-direction:column;align-items:center;gap:12px;margin-top:48px;opacity:0;transition:opacity 400ms ease;">
+      <input id="acc-input" type="password" placeholder="Contraseña" style="width:280px;background:#F5F5F7;border:none;border-radius:980px;padding:14px 20px;font-size:15px;font-family:inherit;color:#1D1D1F;outline:none;text-align:center;transition:border 300ms;" />
+      <button id="acc-btn" onclick="checkAccess()" style="width:280px;background:#1D1D1F;color:#FFFFFF;border:none;border-radius:980px;padding:14px;font-size:15px;font-family:inherit;font-weight:500;cursor:pointer;transition:background 200ms;">Entrar</button>
+    </div>
+  </div>
+</div>
+
+<div id="main-content" style="display:none;">
+
+  <!-- ── NAVBAR ── -->
+  <nav class="navbar">
+    <span class="nav-brand">HERMES STICKER SYSTEM</span>
+    <div class="nav-tabs">
+      <a href="index.html" class="nav-tab active">Cat&#225;logo</a>
+      <a href="setpoint.html" class="nav-tab">Panel de Control</a>
+    </div>
+    <span class="nav-right">QR&nbsp;·&nbsp;Code 128</span>
+  </nav>
+
+  <div class="wrapper" style="padding-top:52px;">
+
+    <!-- HEADER -->
+    <header>
+      <h1>Code Generator</h1>
+      <p class="subtitle">QR &nbsp;·&nbsp; Code 128</p>
+    </header>
+
+    <!-- MAIN GRID -->
+    <div class="main-grid">
+
+      <!-- LEFT: INPUT -->
+      <div class="input-panel">
+
+        <!-- Mode Selector -->
+        <div>
+          <div class="mode-selector" id="mode-selector">
+            <button class="mode-btn active" data-mode="qr" onclick="switchMode('qr')">QR Code</button>
+            <button class="mode-btn" data-mode="c128" onclick="switchMode('c128')">Code 128</button>
+          </div>
+        </div>
+
+        <!-- Text Input -->
+        <div>
+          <div class="field-label">
+            <span>Data Input</span>
+            <span class="char-counter" id="char-counter">0 / 1273 chars</span>
+          </div>
+          <textarea id="code-input" placeholder="Paste a URL, text, JSON, vCard…" spellcheck="false" autocorrect="off"
+            autocomplete="off"></textarea>
+        </div>
+
+        <!-- QR OPTIONS -->
+        <div class="mode-options active" id="opts-qr">
+          <div>
+            <div class="field-label">Export Resolution</div>
+            <div class="size-row">
+              <button class="size-btn" data-size="512">512 px</button>
+              <button class="size-btn active" data-size="1024">1024 px</button>
+              <button class="size-btn" data-size="2048">2048 px</button>
+            </div>
+          </div>
+
+          <div>
+            <div class="field-label">Colors</div>
+            <div class="color-row">
+              <label class="color-swatch">
+                <input type="color" id="color-dark" value="#000000" />
+                <span>Modules</span>
+              </label>
+              <label class="color-swatch">
+                <input type="color" id="color-light" value="#ffffff" />
+                <span>Background</span>
+              </label>
+            </div>
+          </div>
+
+          <div class="info-note">Error correction: Level H · Reed-Solomon · 30% recovery</div>
+        </div>
+
+        <!-- CODE 128 OPTIONS -->
+        <div class="mode-options" id="opts-c128">
+          <div>
+            <div class="field-label">Export Resolution</div>
+            <div class="size-row">
+              <button class="size-btn c128-size" data-size="512">512 px</button>
+              <button class="size-btn c128-size active" data-size="1024">1024 px</button>
+              <button class="size-btn c128-size" data-size="2048">2048 px</button>
+            </div>
+          </div>
+          <!-- iOS-style toggle -->
+          <div class="toggle-row">
+            <div class="toggle-track on" id="c128-toggle" role="checkbox" aria-checked="true" tabindex="0"
+              onclick="toggleC128Text()">
+              <div class="toggle-thumb"></div>
+            </div>
+            <span class="toggle-label" onclick="toggleC128Text()">Show human-readable text below barcode</span>
+          </div>
+          <div class="info-note">Recommended: up to ~80 characters for Code 128. Supports ASCII 0–127.</div>
+        </div>
+
+        <button class="btn-generate" id="btn-generate" onclick="startGenerate()">
+          Generate QR Code
+        </button>
+
+        <!-- Typewriter text (below generate button) -->
+        <div id="typewriter-text"></div>
+
+      </div>
+
+      <!-- RIGHT: OUTPUT -->
+      <div class="output-panel">
+
+        <!-- Code display -->
+        <div class="code-display" id="code-display">
+          <div class="code-placeholder" id="code-placeholder">
+            <!-- Placeholder icon -->
+            <svg width="60" height="60" viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg"
+              opacity="0.28">
+              <rect x="4" y="4" width="22" height="22" rx="3" stroke="#AEAEB2" stroke-width="2" />
+              <rect x="10" y="10" width="10" height="10" rx="1" fill="#AEAEB2" />
+              <rect x="38" y="4" width="22" height="22" rx="3" stroke="#AEAEB2" stroke-width="2" />
+              <rect x="44" y="10" width="10" height="10" rx="1" fill="#AEAEB2" />
+              <rect x="4" y="38" width="22" height="22" rx="3" stroke="#AEAEB2" stroke-width="2" />
+              <rect x="10" y="44" width="10" height="10" rx="1" fill="#AEAEB2" />
+              <rect x="38" y="38" width="6" height="6" fill="#AEAEB2" rx="1" />
+              <rect x="48" y="38" width="6" height="6" fill="#AEAEB2" rx="1" />
+              <rect x="38" y="48" width="6" height="6" fill="#AEAEB2" rx="1" />
+              <rect x="48" y="48" width="6" height="6" fill="#AEAEB2" rx="1" />
+            </svg>
+            <p id="placeholder-text">Your code appears here</p>
+          </div>
+          <div id="code-container"></div>
+        </div>
+
+        <!-- Meta chips -->
+        <div class="code-meta" id="code-meta">
+          <span class="chip" id="chip-format">QR Code</span>
+          <span class="chip" id="chip-ecl">ECL · H</span>
+          <span class="chip" id="chip-bytes">—</span>
+        </div>
+
+        <!-- Download -->
+        <button class="btn-download" id="btn-download" onclick="downloadCode()">
+          <svg class="dl-icon" width="16" height="16" viewBox="0 0 16 16" fill="none"
+            xmlns="http://www.w3.org/2000/svg">
+            <path d="M8 1v9M4 7l4 4 4-4M2 13h12" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" />
+          </svg>
+          Download PNG — 1024 px
+        </button>
+
+        <!-- Print -->
+        <button class="btn-download" id="btn-print" onclick="window.print()">
+          <svg class="dl-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+            stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <polyline points="6 9 6 2 18 2 18 9"></polyline>
+            <path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"></path>
+            <rect x="6" y="14" width="12" height="8"></rect>
+          </svg>
+          Imprimir
+        </button>
+
+      </div>
+
+    </div>
+
+    <footer>Code Generator &nbsp;·&nbsp; High Resolution Export</footer>
+  </div>
+
+  <script>
+    /* ═══════════════════════════════════
+       STATE
+    ═══════════════════════════════════ */
+    let currentMode = 'qr';
+    let exportSize = 1024;
+    let c128ExportSize = 1024;
+    let generatedData = null;
+    let c128ShowText = true;
+
+    const LIMITS = {
+      qr: 1273,
+      c128: 80
+    };
+
+    const FORMAT_LABELS = {
+      qr: 'QR Code',
+      c128: 'Code 128'
+    };
+
+    const BTN_LABELS = {
+      qr: 'Generate QR Code',
+      c128: 'Generate Code 128'
+    };
+
+    const TYPEWRITER_MSG = {
+      qr: 'Generando QR...',
+      c128: 'Generando código de barras...'
+    };
+
+    /* ═══════════════════════════════════
+       DOM REFS
+    ═══════════════════════════════════ */
+    const inputEl = document.getElementById('code-input');
+    const counterEl = document.getElementById('char-counter');
+    const btnGen = document.getElementById('btn-generate');
+    const btnDl = document.getElementById('btn-download');
+    const btnPrint = document.getElementById('btn-print');
+    const codeDisp = document.getElementById('code-display');
+    const codeCont = document.getElementById('code-container');
+    const codePlac = document.getElementById('code-placeholder');
+    const codeMeta = document.getElementById('code-meta');
+    const twEl = document.getElementById('typewriter-text');
+
+    /* ═══════════════════════════════════
+       TOGGLE (Code 128 show text)
+    ═══════════════════════════════════ */
+    function toggleC128Text() {
+      c128ShowText = !c128ShowText;
+      const track = document.getElementById('c128-toggle');
+      track.classList.toggle('on', c128ShowText);
+      track.setAttribute('aria-checked', c128ShowText);
+    }
+
+    /* ═══════════════════════════════════
+       MODE SWITCHING
+    ═══════════════════════════════════ */
+    function switchMode(mode) {
+      if (mode === currentMode) return;
+
+      // Reset output
+      if (generatedData) {
+        codeCont.classList.remove('revealed');
+        codeDisp.classList.remove('has-code');
+        btnDl.classList.remove('visible');
+        btnPrint.classList.remove('visible');
+        codeMeta.classList.remove('visible');
+        codePlac.style.display = 'flex';
+        codeCont.innerHTML = '';
+        generatedData = null;
+      }
+
+      currentMode = mode;
+
+      // Update mode buttons
+      document.querySelectorAll('.mode-btn').forEach(b =>
+        b.classList.toggle('active', b.dataset.mode === mode)
+      );
+
+      // Show/hide option blocks
+      document.querySelectorAll('.mode-options').forEach(el => el.classList.remove('active'));
+      document.getElementById(`opts-${mode}`).classList.add('active');
+
+      // Update generate button label
+      btnGen.textContent = BTN_LABELS[mode];
+
+      // Update counter
+      updateCounter();
+
+      // Update chip
+      document.getElementById('chip-format').textContent = FORMAT_LABELS[mode];
+      document.getElementById('chip-ecl').textContent =
+        mode === 'qr' ? 'ECL · H' : 'Auto Checksum';
+    }
+
+    /* ═══════════════════════════════════
+       CHAR COUNTER
+    ═══════════════════════════════════ */
+    inputEl.addEventListener('input', updateCounter);
+
+    function updateCounter() {
+      const len = inputEl.value.length;
+      const limit = LIMITS[currentMode];
+      const pct = len / limit;
+      counterEl.textContent = `${len.toLocaleString()} / ${limit.toLocaleString()} chars`;
+      counterEl.classList.remove('warn', 'over');
+      if (pct >= 1) counterEl.classList.add('over');
+      else if (pct >= 0.8) counterEl.classList.add('warn');
+    }
+
+    /* ═══════════════════════════════════
+       SIZE BUTTONS — QR
+    ═══════════════════════════════════ */
+    document.querySelectorAll('.size-btn:not(.c128-size)').forEach(btn => {
+      btn.addEventListener('click', () => {
+        document.querySelectorAll('.size-btn:not(.c128-size)').forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        exportSize = parseInt(btn.dataset.size, 10);
+        updateDlLabel();
+      });
+    });
+
+    /* SIZE BUTTONS — Code 128 */
+    document.querySelectorAll('.c128-size').forEach(btn => {
+      btn.addEventListener('click', () => {
+        document.querySelectorAll('.c128-size').forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        c128ExportSize = parseInt(btn.dataset.size, 10);
+        updateDlLabel();
+      });
+    });
+
+    function updateDlLabel() {
+      const sz = currentMode === 'c128' ? c128ExportSize : exportSize;
+      btnDl.innerHTML = `
+        <svg class="dl-icon" width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <path d="M8 1v9M4 7l4 4 4-4M2 13h12" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+        Download PNG — ${sz} px`;
+    }
+
+    /* ═══════════════════════════════════
+       TYPEWRITER ANIMATION
+    ═══════════════════════════════════ */
+    function runTypewriter() {
+      return new Promise(resolve => {
+        const msg = TYPEWRITER_MSG[currentMode];
+        twEl.innerHTML = '';
+        twEl.classList.add('visible');
+        twEl.style.opacity = '1';
+        twEl.style.transition = '';
+
+        // Create a span per character
+        const chars = msg.split('').map(ch => {
+          const span = document.createElement('span');
+          span.className = 'tw-char';
+          span.textContent = ch === ' ' ? '\u00A0' : ch;
+          twEl.appendChild(span);
+          return span;
+        });
+
+        // Reveal characters one by one
+        chars.forEach((span, i) => {
+          setTimeout(() => span.classList.add('shown'), i * 38);
+        });
+
+        // Resolve after all chars are shown
+        const total = chars.length * 38 + 120;
+        setTimeout(resolve, total);
+      });
+    }
+
+    function fadeOutTypewriter() {
+      return new Promise(resolve => {
+        twEl.style.transition = 'opacity 400ms ease';
+        twEl.style.opacity = '0';
+        setTimeout(() => {
+          twEl.classList.remove('visible');
+          twEl.style.opacity = '';
+          twEl.style.transition = '';
+          resolve();
+        }, 420);
+      });
+    }
+
+    /* ═══════════════════════════════════
+       MAIN GENERATE
+    ═══════════════════════════════════ */
+    async function startGenerate() {
+      const text = inputEl.value.trim();
+      if (!text) { inputEl.focus(); return; }
+      if (text.length > LIMITS[currentMode]) { counterEl.classList.add('over'); return; }
+
+      btnGen.disabled = true;
+      btnGen.textContent = 'Generando…';
+
+      // Reset output
+      codeCont.classList.remove('revealed');
+      codeCont.innerHTML = '';
+      codeDisp.classList.remove('has-code');
+      codePlac.style.display = 'flex';
+      btnDl.classList.remove('visible');
+      btnPrint.classList.remove('visible');
+      codeMeta.classList.remove('visible');
+      generatedData = null;
+
+      // Typewriter animation
+      await runTypewriter();
+
+      // Generate the code
+      if (currentMode === 'qr') generateQR(text);
+      else if (currentMode === 'c128') generateC128(text);
+
+      // After code is ready, fade out the typewriter text
+      await fadeOutTypewriter();
+
+      btnGen.disabled = false;
+      btnGen.textContent = BTN_LABELS[currentMode];
+    }
+
+    /* ═══════════════════════════════════
+       QR CODE
+    ═══════════════════════════════════ */
+    function generateQR(text) {
+      const darkColor = document.getElementById('color-dark').value;
+      const lightColor = document.getElementById('color-light').value;
+      codeCont.innerHTML = '';
+
+      try {
+        new QRCode(codeCont, {
+          text, width: 220, height: 220,
+          colorDark: darkColor, colorLight: lightColor,
+          correctLevel: QRCode.CorrectLevel.H
+        });
+
+        setTimeout(() => {
+          const canvas = codeCont.querySelector('canvas');
+          const img = codeCont.querySelector('img');
+          generatedData = { type: 'qr', text, darkColor, lightColor, el: canvas || img };
+          revealCode();
+          updateMeta(text, 'qr');
+        }, 80);
+      } catch (e) {
+        showError('Error generating QR. Check input length.');
+      }
+    }
+
+    /* ═══════════════════════════════════
+       CODE 128
+    ═══════════════════════════════════ */
+    function generateC128(text) {
+      codeCont.innerHTML = '';
+
+      const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+      svg.setAttribute('id', 'barcode-svg');
+      codeCont.appendChild(svg);
+
+      try {
+        JsBarcode('#barcode-svg', text, {
+          format: 'CODE128',
+          lineColor: '#000000',
+          background: '#ffffff',
+          width: 2,
+          height: 100,
+          displayValue: c128ShowText,
+          fontOptions: '',
+          font: '-apple-system, system-ui, sans-serif',
+          textAlign: 'center',
+          textPosition: 'bottom',
+          fontSize: 14,
+          margin: 10
+        });
+
+        generatedData = { type: 'c128', text, svg };
+        revealCode();
+        updateMeta(text, 'c128');
+      } catch (e) {
+        showError('Error generating Code 128. Only ASCII 0–127 is supported.');
+      }
+    }
+
+    /* ═══════════════════════════════════
+       HELPERS
+    ═══════════════════════════════════ */
+    function revealCode() {
+      codePlac.style.display = 'none';
+      codeDisp.classList.add('has-code');
+      requestAnimationFrame(() => codeCont.classList.add('revealed'));
+      btnDl.classList.add('visible');
+      btnPrint.classList.add('visible');
+      codeMeta.classList.add('visible');
+      updateDlLabel();
+    }
+
+    function showError(msg) {
+      codePlac.style.display = 'flex';
+      document.getElementById('placeholder-text').textContent = msg;
+    }
+
+    function updateMeta(text, mode) {
+      const bytes = new TextEncoder().encode(text).byteLength;
+      document.getElementById('chip-bytes').textContent = `${bytes} bytes`;
+      document.getElementById('chip-format').textContent = FORMAT_LABELS[mode];
+      document.getElementById('chip-ecl').textContent =
+        mode === 'qr' ? 'ECL · H' : 'Auto Checksum';
+    }
+
+    /* ═══════════════════════════════════
+       DOWNLOAD
+    ═══════════════════════════════════ */
+    function downloadCode() {
+      if (!generatedData) return;
+      if (generatedData.type === 'qr') downloadQR();
+      else if (generatedData.type === 'c128') downloadSVG(generatedData.svg, 'code-128');
+    }
+
+    function downloadQR() {
+      const { text, darkColor, lightColor } = generatedData;
+      const size = exportSize;
+      const tmp = document.createElement('div');
+      tmp.style.cssText = 'position:fixed;left:-9999px;top:-9999px;visibility:hidden;';
+      document.body.appendChild(tmp);
+
+      try {
+        new QRCode(tmp, {
+          text, width: size, height: size,
+          colorDark: darkColor, colorLight: lightColor,
+          correctLevel: QRCode.CorrectLevel.H
+        });
+
+        setTimeout(() => {
+          const canvas = tmp.querySelector('canvas');
+          const img = tmp.querySelector('img');
+          let dataURL;
+          if (canvas) {
+            dataURL = canvas.toDataURL('image/png');
+          } else if (img) {
+            const off = document.createElement('canvas');
+            off.width = size; off.height = size;
+            off.getContext('2d').drawImage(img, 0, 0, size, size);
+            dataURL = off.toDataURL('image/png');
+          }
+          if (dataURL) triggerDownload(dataURL, `qr-code-${size}px.png`);
+          document.body.removeChild(tmp);
+        }, 200);
+      } catch (e) {
+        document.body.removeChild(tmp);
+      }
+    }
+
+    function downloadSVG(svgEl, prefix) {
+      const size = currentMode === 'c128' ? c128ExportSize : 1024;
+      const svgStr = new XMLSerializer().serializeToString(svgEl);
+      const img = new Image();
+
+      img.onload = () => {
+        const canvas = document.createElement('canvas');
+        canvas.width = size;
+        canvas.height = Math.round(size * (img.naturalHeight / img.naturalWidth)) || size;
+        const ctx = canvas.getContext('2d');
+        ctx.fillStyle = '#ffffff';
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+        ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+        triggerDownload(canvas.toDataURL('image/png'), `${prefix}-${size}px.png`);
+      };
+
+      img.src = 'data:image/svg+xml;base64,' + btoa(unescape(encodeURIComponent(svgStr)));
+    }
+
+    function triggerDownload(dataURL, filename) {
+      const a = document.createElement('a');
+      a.href = dataURL;
+      a.download = filename;
+      a.click();
+    }
+
+    /* ═══════════════════════════════════
+       KEYBOARD SHORTCUT
+    ═══════════════════════════════════ */
+    inputEl.addEventListener('keydown', e => {
+      if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) {
+        e.preventDefault();
+        startGenerate();
+      }
+    });
+
+    /* ═══════════════════════════════════
+       INIT
+    ═══════════════════════════════════ */
+    updateCounter();
+  </script>
+</div><!-- /#main-content -->
+
+<style>
+  @keyframes acc-shake {
+    0%,100% { transform: translateX(0); }
+    20%     { transform: translateX(-8px); }
+    40%     { transform: translateX(8px); }
+    60%     { transform: translateX(-6px); }
+    80%     { transform: translateX(6px); }
+  }
+  #acc-input.shake { animation: acc-shake 500ms var(--ease); }
+  #acc-btn:hover   { background: #3a3a3c !important; }
+</style>
+
+<script>
+  /* ── ACCESS GATE ── */
+  const PASSWORD = 'hermes2025';
+
+  (function initAccess() {
+    if (sessionStorage.getItem('hss_auth') === '1') {
+      // Already authenticated this session
+      document.getElementById('access-screen').style.display = 'none';
+      document.getElementById('main-content').style.display = 'block';
+      return;
+    }
+
+    // Staggered entrance animations
+    setTimeout(() => { document.getElementById('acc-hss').style.opacity = '1'; }, 100);
+    setTimeout(() => { document.getElementById('acc-sub').style.opacity = '1'; }, 500);
+    setTimeout(() => { document.getElementById('acc-form').style.opacity = '1'; }, 900);
+
+    // Enter key support
+    document.getElementById('acc-input').addEventListener('keydown', function(e) {
+      if (e.key === 'Enter') checkAccess();
+    });
+  })();
+
+  function checkAccess() {
+    const input = document.getElementById('acc-input');
+    if (input.value === PASSWORD) {
+      sessionStorage.setItem('hss_auth', '1');
+      const screen = document.getElementById('access-screen');
+      screen.style.transition = 'opacity 600ms ease';
+      screen.style.opacity = '0';
+      setTimeout(() => {
+        screen.style.display = 'none';
+        const main = document.getElementById('main-content');
+        main.style.display = 'block';
+        main.style.opacity = '0';
+        main.style.transition = 'opacity 500ms ease';
+        requestAnimationFrame(() => { main.style.opacity = '1'; });
+      }, 600);
+    } else {
+      const input = document.getElementById('acc-input');
+      input.classList.remove('shake');
+      void input.offsetWidth; // reflow to restart animation
+      input.classList.add('shake');
+      input.style.border = '1.5px solid #FF3B30';
+      input.placeholder = 'Contraseña incorrecta';
+      input.style.color = '#FF3B30';
+      input.value = '';
+      setTimeout(() => {
+        input.style.border = 'none';
+        input.placeholder = 'Contraseña';
+        input.style.color = '#1D1D1F';
+        input.classList.remove('shake');
+      }, 1000);
+    }
+  }
+</script>
+
+</body>
+
+</html>
