@@ -1,0 +1,4846 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Panel de Control · Sticker System</title>
+  <meta name="description" content="Panel de control para el sistema automatizado de producción de stickers. Gestión de colecciones, control ESP32 y monitoreo en tiempo real." />
+  <style>
+    /* ── Variables ── */
+    :root {
+      --font: -apple-system, "SF Pro Text", "SF Pro Display", BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
+      --bg: #0a0a0f;
+      --white: #FFFFFF;
+      --surface: rgba(255,255,255,0.05);
+      --text: #FFFFFF;
+      --text-2: rgba(255,255,255,0.5);
+      --text-3: #AEAEB2;
+      --green: #34C759;
+      --red: #FF3B30;
+      --yellow: #FF9F0A;
+      --blue: #0A84FF;
+      --radius-xl: 20px;
+      --radius-lg: 16px;
+      --radius-md: 12px;
+      --radius-pill: 980px;
+      --ease: cubic-bezier(0.25, 0.46, 0.45, 0.94);
+      --nav-h: 52px;
+    }
+
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    html, body {
+      background-color: #0a0a0f !important;
+      color: white !important;
+    }
+
+    html { scroll-behavior: smooth; }
+
+    body {
+      font-family: var(--font);
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      overflow-x: hidden;
+    }
+
+    #particles-canvas {
+      position: fixed !important;
+      top: 0 !important;
+      left: 0 !important;
+      width: 100% !important;
+      height: 100% !important;
+      z-index: 0 !important;
+      background: #0a0a0f !important;
+    }
+
+    .navbar, main, .container, header, section, .card, .main, .collections-grid, .panel-grid {
+      position: relative !important;
+      z-index: 1 !important;
+    }
+
+    /* ── SCROLLBAR ── */
+    ::-webkit-scrollbar { width: 5px; }
+    ::-webkit-scrollbar-track { background: transparent; }
+    ::-webkit-scrollbar-thumb {`n      background: rgba(255,255,255,0.2);`n      border-radius: 3px;`n    }
+
+    /* ════════════════════════════════════
+       NAVBAR
+    ════════════════════════════════════ */
+    .navbar {
+      position: fixed;
+      top: 0; left: 0; right: 0;
+      height: var(--nav-h);
+      background: rgba(10,10,15,0.8);$21px solid rgba(255, 255, 255, 0.08);
+      backdrop-filter: blur(20px);
+      -webkit-backdrop-filter: blur(20px);
+      z-index: 1000;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 24px;
+    }
+
+    .nav-brand {
+      font-size: 13px;
+      font-weight: 600;
+      letter-spacing: 0.1em;
+      color: var(--text);
+      text-transform: uppercase;
+    }
+
+    .nav-tabs {
+      display: flex;
+      background: rgba(255, 255, 255, 0.05);
+      border-radius: var(--radius-pill);
+      padding: 3px;
+      gap: 0;
+    }
+
+    .nav-tab {
+      padding: 7px 18px;
+      border: none;
+      border-radius: var(--radius-pill);
+      font-family: var(--font);
+      font-size: 13px;
+      font-weight: 400;
+      cursor: pointer;
+      text-decoration: none;
+      transition: all 200ms var(--ease);
+      background: transparent;
+      color: var(--text);
+      display: block;
+    }
+
+    .nav-tab.active {
+      background: white !important;
+      color: #1D1D1F !important;
+      font-weight: 500;
+    }
+
+    .nav-tab:not(.active):hover {
+      background: rgba(255,255,255,0.08);
+    }
+
+    .nav-status {
+      display: flex;
+      align-items: center;
+      gap: 7px;
+      font-size: 13px;
+      color: var(--text-2);
+    }
+
+    .status-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: var(--green);
+      flex-shrink: 0;
+    }
+
+    .status-dot.connected { background: var(--green); animation: pulse-green 2s infinite; }
+    .status-dot.disconnected { background: var(--red); }
+
+    @keyframes pulse-green {
+      0%, 100% { box-shadow: 0 0 0 0 rgba(52,199,89,0.4); }
+      50% { box-shadow: 0 0 0 4px rgba(52,199,89,0); }
+    }
+
+    /* ════════════════════════════════════
+       MAIN LAYOUT
+    ════════════════════════════════════ */
+    .main {
+      margin-top: var(--nav-h);
+      padding: 32px 24px 80px;
+      max-width: 1200px;
+      margin-left: auto;
+      margin-right: auto;
+    }
+
+    /* Clear top margin from auto-layout */
+    .main { margin-top: calc(var(--nav-h) + 0px); padding-top: 32px; }
+
+    .section-title {
+      font-size: 17px;
+      font-weight: 600;
+      color: var(--text);
+      margin-bottom: 20px;
+    }
+
+    .section + .section { margin-top: 40px; }
+
+    /* ── Segmented row ── */
+    .section-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 20px;
+    }
+
+    /* ════════════════════════════════════
+       BUTTONS
+    ════════════════════════════════════ */
+    .btn {
+      border: none;
+      border-radius: var(--radius-pill);
+      font-family: var(--font);
+      font-size: 13px;
+      font-weight: 500;
+      cursor: pointer;
+      padding: 9px 18px;
+      transition: all 200ms var(--ease);
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      white-space: nowrap;
+    }
+
+    .btn-primary {
+      background: rgba(255,255,255,0.15);`n      border: 1px solid rgba(255,255,255,0.2);
+      color: #FFFFFF;
+    }
+    .btn-primary:hover { background: rgba(255,255,255,0.06); }
+    .btn-primary:active { transform: scale(0.97); }
+    .btn-primary:disabled { opacity: 0.4; cursor: not-allowed; }
+
+    .btn-secondary {
+      background: rgba(255, 255, 255, 0.06);
+      color: var(--text);
+    }
+    .btn-secondary:hover { background: rgba(255, 255, 255, 0.1); }
+    .btn-secondary:disabled { opacity: 0.4; cursor: not-allowed; }
+
+    .btn-danger {
+      background: rgba(255,59,48,0.2);
+      color: var(--red);
+    }
+    .btn-danger:hover { background: rgba(255,59,48,0.2); }
+
+    .btn-sm { padding: 6px 13px; font-size: 12px; }
+
+    /* ════════════════════════════════════
+       BADGE
+    ════════════════════════════════════ */
+    .badge {
+      display: inline-flex;
+      align-items: center;
+      padding: 4px 10px;
+      border-radius: var(--radius-pill);
+      font-size: 11px;
+      font-weight: 500;
+      gap: 4px;
+    }
+
+    .badge-green { background: rgba(52,199,89,0.2); color: #1a7a36; }
+    .badge-red   { background: rgba(255,59,48,0.2); color: #cc1a11; }
+    .badge-yellow{ background: rgba(255,159,10,0.2); color: #a05a00; }
+    .badge-blue  { background: rgba(10,132,255,0.2); color: #0358b3; }
+    .badge-gray  { background: rgba(255, 255, 255, 0.06); color: var(--text-2); }
+
+    /* ════════════════════════════════════
+       CARD
+    ════════════════════════════════════ */
+    .card {
+      background: rgba(255,255,255,0.06) !important;
+      border: 1px solid rgba(255,255,255,0.1) !important;
+      border-radius: var(--radius-xl);
+      box-shadow: 0 2px 12px rgba(0,0,0,0.3);
+      padding: 20px;
+      color: white !important;
+    }
+
+    /* ════════════════════════════════════
+       SECTION 1 — COLECCIONES
+    ════════════════════════════════════ */
+    .collections-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 20px;
+    }
+
+    @media (max-width: 900px) {
+      .collections-grid { grid-template-columns: repeat(2, 1fr); }
+    }
+    @media (max-width: 560px) {
+      .collections-grid { grid-template-columns: 1fr; }
+    }
+
+    /* Collection card */
+    .col-card {
+      background: rgba(255,255,255,0.06) !important;
+      border: 1px solid rgba(255,255,255,0.2) !important;
+      border-radius: var(--radius-xl);
+      box-shadow: 0 2px 12px rgba(0,0,0,0.3);
+      padding: 20px;
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+      color: white !important;
+      transition: border-color 300ms ease !important;
+    }
+
+    .col-card:hover {
+      border-color: rgba(255,255,255,0.5) !important;
+      box-shadow: 0 0 12px rgba(255,255,255,0.05) !important;
+    }
+
+    /* Add collection card */
+    .col-add-card {
+      align-items: center;
+      justify-content: center;
+      min-height: 350px;
+      border: 1px solid rgba(255,255,255,0.2) !important;
+      background: transparent !important;
+      box-shadow: none;
+      color: rgba(255,255,255,0.6) !important;
+      cursor: pointer;
+      transition: all 250ms var(--ease);
+      gap: 12px;
+    }
+
+    .col-add-card:hover {
+      border-color: rgba(255,255,255,0.6) !important;
+      color: white !important;
+    }
+
+    .col-add-card svg {
+      color: inherit;
+    }
+
+    .col-add-card span {
+      font-size: 13px;
+      font-weight: 500;
+      color: inherit;
+    }
+
+    /* Editable name */
+    .col-name-wrap { display: flex; align-items: center; gap: 8px; }
+
+    .col-name {
+      font-size: 15px;
+      font-weight: 600;
+      color: white !important;
+      cursor: text;
+      flex: 1;
+      padding: 3px 6px;
+      border-radius: 7px;
+      border: 1.5px solid transparent;
+      background: transparent;
+      transition: border-color 150ms, background 150ms;
+      outline: none;
+      font-family: var(--font);
+    }
+
+    .col-name:hover { background: var(--surface); }
+    .col-name:focus { background: var(--surface); border-color: rgba(255, 255, 255, 0.12); }
+
+    /* Carousel */
+    .carousel-wrap {
+      position: relative;
+      height: 200px;
+      border-radius: var(--radius-md);
+      overflow: hidden;
+      background: rgba(255,255,255,0.05);
+    }
+
+    .carousel-slide {
+      position: absolute;
+      inset: 0;
+      opacity: 0;
+      transition: opacity 500ms var(--ease);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      pointer-events: none;
+    }
+
+    .carousel-slide.active { opacity: 1; pointer-events: auto; }
+
+    .carousel-slide img {
+      width: 100%;
+      height: 100%;
+      object-fit: contain;
+    }
+
+    .carousel-empty {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 10px;
+      height: 100%;
+      color: var(--text-3);
+      font-size: 13px;
+    }
+
+    .carousel-empty svg { opacity: 0.5; }
+
+    /* Nav arrows */
+    .carousel-btn {
+      position: absolute;
+      top: 50%;
+      transform: translateY(-50%);
+      background: rgba(255, 255, 255, 0.4);
+      color: #FFF;
+      border: none;
+      border-radius: var(--radius-pill);
+      width: 32px;
+      height: 32px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      opacity: 0;
+      transition: opacity 200ms var(--ease);
+      font-size: 16px;
+      line-height: 1;
+      z-index: 2;
+    }
+
+    .carousel-wrap:hover .carousel-btn { opacity: 1; }
+    .carousel-btn.prev { left: 8px; }
+    .carousel-btn.next { right: 8px; }
+    .carousel-btn:hover { background: rgba(255, 255, 255, 0.6); }
+
+    .btn-delete-img {
+      position: absolute;
+      top: 8px;
+      right: 8px;
+      width: 20px;
+      height: 20px;
+      border-radius: var(--radius-pill);
+      background: rgba(255,59,48,0.85);
+      color: #FFF;
+      border: none;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 10px;
+      cursor: pointer;
+      opacity: 0;
+      transition: opacity 250ms var(--ease), background 200ms;
+      z-index: 10;
+    }
+    .carousel-wrap:hover .btn-delete-img { opacity: 1; }
+    .btn-delete-img:hover { background: rgba(255,59,48,1); }
+
+    .carousel-counter {
+      text-align: center;
+      font-size: 12px;
+      color: var(--text-3);
+      margin-top: 6px;
+    }
+
+    /* Card actions */
+    .col-actions {
+      display: flex;
+      gap: 8px;
+    }
+
+    .col-actions .btn { flex: 1; justify-content: center; }
+
+    /* ════════════════════════════════════
+       SECTION 2 — ESP32 PANEL
+    ════════════════════════════════════ */
+
+    /* Connection bar */
+    .esp-connect-bar {
+      display: flex;
+      gap: 10px;
+      align-items: center;
+    }
+
+    .ip-input {
+      flex: 1;
+      max-width: 240px;
+      padding: 10px 14px;
+      background: rgba(255,255,255,0.05);
+      border: 1px solid rgba(255,255,255,0.1);
+      border-radius: var(--radius-md);
+      font-family: var(--font);
+      font-size: 14px;
+      color: var(--text);
+      outline: none;
+      transition: background 150ms;
+    }
+
+    .ip-input:focus { background: rgba(255,255,255,0.08); }
+    .ip-input::placeholder {`n      color: rgba(255,255,255,0.4);  }
+
+    /* Grid 2x2 zones */
+    .zones-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 16px;
+      margin-top: 16px;
+    }
+
+    @media (max-width: 560px) {
+      .zones-grid { grid-template-columns: 1fr; }
+    }
+
+    .zone-card {
+      background: rgba(255,255,255,0.06) !important;
+      border: 1px solid rgba(255,255,255,0.2) !important;
+      border-radius: var(--radius-lg);
+      box-shadow: 0 2px 8px rgba(255, 255, 255, 0.05);
+      padding: 16px;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      color: white !important;
+      transition: border-color 300ms ease, box-shadow 300ms ease !important;
+    }
+
+    .zone-card:hover {
+      border-color: rgba(255,255,255,0.5) !important;
+      box-shadow: 0 0 12px rgba(255,255,255,0.05) !important;
+    }
+
+    .zone-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .zone-name { font-size: 14px; font-weight: 600; }
+
+    /* Progress bar */
+    .progress-wrap { display: flex; flex-direction: column; gap: 5px; }
+
+    .progress-bar {
+      height: 6px;
+      border-radius: var(--radius-pill);
+      background: rgba(255, 255, 255, 0.08);
+      overflow: hidden;
+    }
+
+    .progress-fill {
+      height: 100%;
+      border-radius: var(--radius-pill);
+      transition: width 500ms var(--ease), background-color 500ms;
+    }
+
+    .progress-meta {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .progress-pct { font-size: 12px; font-weight: 600; color: var(--text-2); }
+
+    /* Retry badge */
+    .retry-badge {
+      font-size: 11px;
+      font-weight: 500;
+      padding: 3px 8px;
+      border-radius: var(--radius-pill);
+      background: rgba(255, 255, 255, 0.06);
+      color: var(--text-2);
+      transition: all 300ms var(--ease);
+    }
+
+    .retry-badge.alert { background: rgba(255,59,48,0.2); color: var(--red); }
+
+    /* ─ Warehouse map ─ */
+    .warehouse-map {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 10px;
+      margin-top: 16px;
+    }
+
+    .slot {
+      border-radius: var(--radius-lg);
+      aspect-ratio: 1;
+      display: flex;
+      flex-direction: column;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 0;
+      cursor: default;
+      transition: transform 200ms var(--ease), box-shadow 200ms;
+      padding: 10px;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .slot:hover { transform: scale(1.02); box-shadow: 0 0 12px rgba(255,255,255,0.05) !important; border-color: rgba(255,255,255,0.5) !important; }
+    .slot.empty   { background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.2) !important; transition: border-color 300ms ease, box-shadow 300ms ease !important; }
+    .slot.partial { background: rgba(255,159,10,0.15); border: 1px solid rgba(255,255,255,0.2) !important; transition: border-color 300ms ease, box-shadow 300ms ease !important; }
+    .slot.full    { background: rgba(52,199,89,0.15); border: 1px solid rgba(255,255,255,0.2) !important; transition: border-color 300ms ease, box-shadow 300ms ease !important; }
+
+    /* Slot inner layout */
+    .slot-top { display: flex; flex-direction: column; gap: 3px; width: 100%; }
+    .slot-name { font-size: 12px; font-weight: 600; color: var(--text); line-height: 1.2; }
+
+    .slot-badge {
+      display: inline-flex;
+      align-items: center;
+      padding: 2px 6px;
+      border-radius: var(--radius-pill);
+      font-size: 9px;
+      font-weight: 600;
+      letter-spacing: 0.03em;
+      text-transform: uppercase;
+    }
+    .slot-badge.empty   { background: rgba(255, 255, 255, 0.07); color: var(--text-2); }
+    .slot-badge.partial { background: rgba(255,159,10,0.2); color: #a05a00; }
+    .slot-badge.full    { background: rgba(255,59,48,0.2); color: #cc1a11; }
+
+    .slot-bottom { width: 100%; display: flex; flex-direction: column; gap: 4px; }
+
+    .slot-counter {
+      font-size: 9px;
+      color: var(--text-3);
+      line-height: 1;
+    }
+    .slot-counter .cap-val {
+      cursor: pointer;
+      border-bottom: 1px dashed rgba(255, 255, 255, 0.2);
+      display: inline;
+    }
+    .slot-counter .cap-val:hover { color: var(--text-2); }
+    .slot-counter input.cap-inline {
+      width: 36px;
+      background: rgba(255, 255, 255, 0.06);
+      border: 1px solid rgba(255,255,255,0.1);
+      border-radius: 4px;
+      font-family: var(--font);
+      font-size: 9px;
+      color: var(--text);
+      padding: 1px 3px;
+      outline: none;
+      text-align: center;
+    }
+
+    .slot-progress {
+      height: 4px;
+      border-radius: var(--radius-pill);
+      background: rgba(255, 255, 255, 0.08);
+      overflow: hidden;
+      width: 100%;
+    }
+    .slot-progress-fill {
+      height: 100%;
+      border-radius: var(--radius-pill);
+      transition: width 500ms var(--ease), background 500ms;
+    }
+
+    /* Delete button inside slot */
+    .slot .slot-trash {
+      position: absolute;
+      top: 5px;
+      right: 5px;
+      width: 20px;
+      height: 20px;
+      border-radius: var(--radius-pill);
+      background: rgba(255,59,48,0.1);
+      color: #FF3B30;
+      border: none;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      font-size: 11px;
+      opacity: 0;
+      transition: opacity 200ms var(--ease), background 200ms;
+    }
+    .slot:hover .slot-trash { opacity: 1; }
+    .slot .slot-trash:hover { background: rgba(255,59,48,0.2); }
+
+    /* Add slot card */
+    .slot-add-card {
+      border-radius: var(--radius-lg);
+      aspect-ratio: 1;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+      cursor: pointer;
+      border: 1px solid rgba(255,255,255,0.2) !important;
+      background: transparent;
+      color: rgba(255,255,255,0.6) !important;
+      transition: border-color 250ms var(--ease), color 250ms var(--ease);
+    }
+    .slot-add-card:hover {
+      border-color: rgba(255,255,255,0.6) !important;
+      color: white !important;
+    }
+    .slot-add-card span {
+      font-size: 13px;
+      font-weight: 500;
+    }
+
+    .slot-label { font-size: 11px; font-weight: 600; color: var(--text-2); }
+    .slot-count { font-size: 10px; color: var(--text-3); }
+
+    /* ─ Order History ─ */
+    .order-card {
+      background: rgba(255,255,255,0.06);
+      border-radius: 16px;
+      box-shadow: 0 2px 12px rgba(0,0,0,0.3);
+      padding: 16px;
+      cursor: pointer;
+      transition: transform 200ms var(--ease), box-shadow 200ms;
+    }
+    .order-card:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 4px 16px rgba(255, 255, 255, 0.1);
+    }
+    .order-top {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 6px;
+    }
+    .order-id {
+      font-size: 15px;
+      font-weight: 600;
+      color: #FFFFFF;
+    }
+    .order-badge {
+      font-size: 11px;
+      font-weight: 500;
+      padding: 4px 10px;
+      border-radius: var(--radius-pill);
+    }
+    .order-badge.en_proceso { background: rgba(10,132,255,0.1); color: #0A84FF; }
+    .order-badge.completado { background: rgba(52,199,89,0.1); color: #34C759; }
+    .order-badge.entregado { background: rgba(110,110,115,0.1); color: rgba(255,255,255,0.5); }
+    
+    .order-bottom {
+      font-size: 13px;
+      color: rgba(255,255,255,0.5);
+    }
+
+    .order-details {
+      display: none;
+      margin-top: 14px;
+      padding-top: 14px;
+      border-top: 1px solid rgba(255, 255, 255, 0.05);
+      animation: fadeSlideDown 300ms var(--ease);
+      font-size: 13px;
+      color: #FFFFFF;
+      line-height: 1.6;
+    }
+    .order-details.open { display: block; }
+    @keyframes fadeSlideDown {
+      from { opacity: 0; transform: translateY(-4px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+    
+    .order-detail-row {
+      display: flex;
+      justify-content: space-between;
+      margin-bottom: 4px;
+    }
+    .order-detail-label { color: rgba(255,255,255,0.5); }
+    
+    .order-col-list {
+      margin-top: 8px;
+      background: rgba(255,255,255,0.05);
+      border-radius: 8px;
+      padding: 8px 12px;
+      margin-bottom: 12px;
+    }
+    .order-col-item {
+      display: flex;
+      justify-content: space-between;
+      margin-bottom: 4px;
+    }
+    .order-col-item:last-child { margin-bottom: 0; }
+
+    /* ─ Event log ─ */
+    .event-log {
+      max-height: 220px;
+      overflow-y: auto;
+      display: flex;
+      flex-direction: column;
+      gap: 0;
+      margin-top: 12px;
+    }
+
+    .event-row {
+      display: flex;
+      align-items: flex-start;
+      gap: 10px;
+      padding: 8px 0;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+      font-size: 12px;
+      animation: fadeSlideUp 250ms var(--ease);
+    }
+
+    .event-row:last-child { border-bottom: none; }
+
+    @keyframes fadeSlideUp {
+      from { opacity: 0; transform: translateY(6px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+
+    .event-time { color: var(--text-3); white-space: nowrap; }
+    .event-msg  { color: var(--text-2); flex: 1; }
+    .event-dot  { width: 6px; height: 6px; border-radius: 50%; margin-top: 3px; flex-shrink: 0; }
+
+    .event-dot.info    { background: var(--blue); }
+    .event-dot.success { background: var(--green); }
+    .event-dot.warning { background: var(--yellow); }
+    .event-dot.error   { background: var(--red); }
+
+    /* ─ Maintenance controls ─ */
+    .maint-controls {
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+      margin-top: 12px;
+      transition: opacity 300ms var(--ease);
+    }
+
+    .maint-controls.disabled {
+      opacity: 0.4;
+      pointer-events: none;
+    }
+
+    .maint-btn {
+      padding: 9px 16px;
+      background: rgba(255, 255, 255, 0.06);
+      border: none;
+      border-radius: var(--radius-pill);
+      font-family: var(--font);
+      font-size: 13px;
+      color: var(--text);
+      cursor: pointer;
+      transition: background 200ms var(--ease);
+    }
+    .maint-btn:hover { background: rgba(255, 255, 255, 0.1); }
+
+    /* ─ Toggle (iOS-style) ─ */
+    .toggle-row {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .toggle-label {
+      font-size: 13px;
+      color: var(--text-2);
+      cursor: pointer;
+      user-select: none;
+    }
+
+    .toggle-track {
+      position: relative;
+      width: 44px;
+      height: 26px;
+      border-radius: var(--radius-pill);
+      background: rgba(255, 255, 255, 0.12);
+      cursor: pointer;
+      transition: background 250ms var(--ease);
+      flex-shrink: 0;
+    }
+
+    .toggle-track.on { background: var(--green); }
+
+    .toggle-thumb {
+      position: absolute;
+      top: 3px; left: 3px;
+      width: 20px; height: 20px;
+      border-radius: 50%;
+      background: rgba(255,255,255,0.06);
+      box-shadow: 0 1px 3px rgba(0,0,0,0.3);
+      transition: transform 250ms var(--ease);
+    }
+
+    .toggle-track.on .toggle-thumb { transform: translateX(18px); }
+
+    /* ─ Two-col layout ─ */
+    .panel-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 20px;
+      margin-top: 16px;
+    }
+
+    @media (max-width: 800px) {
+      .panel-grid { grid-template-columns: 1fr; }
+    }
+
+    /* ════════════════════════════════════
+       MODALS
+    ════════════════════════════════════ */
+    .modal-overlay {
+      position: fixed;
+      inset: 0;
+      background: rgba(255, 255, 255, 0.35);
+      backdrop-filter: blur(8px);
+      -webkit-backdrop-filter: blur(8px);
+      z-index: 2000;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      opacity: 0;
+      visibility: hidden;
+      transition: opacity 250ms var(--ease), visibility 250ms;
+    }
+
+    .modal-overlay.visible {
+      opacity: 1;
+      visibility: visible;
+    }
+
+    .modal-overlay.critical {
+      background: rgba(255,59,48,0.2);
+    }
+
+    .modal-card {
+      background: rgba(20,20,30,0.95);`n      border: 1px solid rgba(255,255,255,0.1);
+      border-radius: var(--radius-xl);
+      padding: 28px;
+      max-width: 380px;
+      width: 90%;
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+      transform: scale(0.95);
+      transition: transform 250ms var(--ease);
+      box-shadow: 0 20px 60px rgba(255, 255, 255, 0.18);
+    }
+
+    .modal-overlay.visible .modal-card { transform: scale(1); }
+
+    .modal-title { font-size: 17px; font-weight: 600; color: white !important; }
+
+    .modal-msg { font-size: 14px; color: rgba(255,255,255,0.7) !important; line-height: 1.55; }
+
+    .modal-actions { display: flex; gap: 10px; justify-content: flex-end; }
+
+    /* ─ Slot detail modal ─ */
+    .slot-detail { display: flex; flex-direction: column; gap: 8px; }
+    .slot-detail-row { display: flex; justify-content: space-between; font-size: 13px; color: white !important; }
+    .slot-detail-label { color: rgba(255,255,255,0.7) !important; }
+    .slot-detail-value { font-weight: 500; color: white !important; }
+
+    /* ════════════════════════════════════
+       DEMO BUTTON (fixed)
+    ════════════════════════════════════ */
+    .demo-fab {
+      position: fixed;
+      bottom: 28px;
+      right: 28px;
+      z-index: 900;
+      padding: 11px 20px;
+      background: var(--text);
+      color: #1D1D1F !important;
+      border: none;
+      border-radius: var(--radius-pill);
+      font-family: var(--font);
+      font-size: 13px;
+      font-weight: 500;
+      cursor: pointer;
+      box-shadow: 0 4px 20px rgba(255, 255, 255, 0.2);
+      transition: all 250ms var(--ease);
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .demo-fab:hover { transform: translateY(-2px); box-shadow: 0 8px 28px rgba(255, 255, 255, 0.22); }
+    .demo-fab.active { background: var(--green); color: #1D1D1F !important; }
+
+    /* ─ Inline loading spinner ─ */
+    @keyframes spin { to { transform: rotate(360deg); } }
+    .spinner {
+      width: 13px; height: 13px;
+      border: 2px solid rgba(255,255,255,0.3);
+      border-top-color: #FFF;
+      border-radius: 50%;
+      animation: spin 0.7s linear infinite;
+      display: inline-block;
+    }
+
+    /* ─ Divider ─ */
+    .divider {
+      height: 1px;
+      background: rgba(255, 255, 255, 0.06);
+      margin: 4px 0;
+    }
+
+    /* ─ Sub-section label ─ */
+    .sub-label {
+      font-size: 12px;
+      font-weight: 500;
+      color: var(--text-3);
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      margin-bottom: 10px;
+    }
+
+    /* ─ Delete & Add Components ─ */
+    .btn-trash {
+      position: absolute;
+      top: 14px;
+      right: 14px;
+      width: 28px;
+      height: 28px;
+      border-radius: var(--radius-pill);
+      background: rgba(255, 59, 48, 0.1);
+      color: #FF3B30;
+      border: none;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      z-index: 10;
+      transition: all 200ms var(--ease);
+    }
+    .btn-trash:hover {
+      background: rgba(255, 59, 48, 0.2);
+      transform: scale(1.05);
+    }
+    .col-card { position: relative; }
+
+    .add-special-card {
+      border: 1px solid rgba(255,255,255,0.2) !important;
+      background: transparent;
+      box-shadow: none;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      color: rgba(255,255,255,0.6) !important;
+      cursor: pointer;
+      transition: all 250ms var(--ease);
+      min-height: 120px;
+    }
+    .add-special-card:hover {
+      border-color: rgba(255,255,255,0.6) !important;
+      color: white !important;
+    }
+
+    /* ── ACCESS SCREEN shake ── */
+    @keyframes acc-shake {
+      0%,100% { transform: translateX(0); }
+      20%     { transform: translateX(-8px); }
+      40%     { transform: translateX(8px); }
+      60%     { transform: translateX(-6px); }
+      80%     { transform: translateX(6px); }
+    }
+    #acc-input.shake { animation: acc-shake 500ms var(--ease); }
+    #acc-btn:hover   { background: #FFFFFF !important; }
+    .add-special-card svg {
+      color: inherit;
+      width: 32px;
+      height: 32px;
+      margin-bottom: 8px;
+    }
+    .add-special-card span {
+      font-size: 13px;
+      font-weight: 500;
+    }
+
+    .zone-card { position: relative; overflow: hidden; }
+    .zone-card .btn-trash {
+      top: 12px;
+      right: 12px;
+      width: 24px;
+      height: 24px;
+      opacity: 0;
+    }
+    .zone-card:hover .btn-trash { opacity: 1; }
+
+    .slot { position: relative; }
+    .slot .btn-trash {
+      top: 4px;
+      right: 4px;
+      width: 20px;
+      height: 20px;
+      opacity: 0;
+      font-size: 10px;
+    }
+    .slot:hover .btn-trash { opacity: 1; }
+
+    .fade-out {
+      opacity: 0;
+      transform: scale(0.95);
+      transition: opacity 300ms var(--ease), transform 300ms var(--ease);
+    }
+    .fade-in {
+      animation: fadeInAnim 300ms var(--ease) forwards;
+    }
+    @keyframes fadeInAnim {
+      from { opacity: 0; transform: scale(0.95); }
+      to { opacity: 1; transform: scale(1); }
+    }
+
+    /* ── PACKING SELECT ── */
+    .btn-packing {
+      background: rgba(255,255,255,0.06);
+      color: #FFFFFF;
+      padding: 16px 40px;
+      font-size: 16px;
+      font-weight: 600;
+      border: 1px solid rgba(255,255,255,0.3) !important;
+      border-radius: var(--radius-pill);
+      cursor: pointer;
+      width: 100%;
+      max-width: 400px;
+      transition: background 200ms var(--ease);
+      font-family: var(--font);
+    }
+    .btn-packing:hover { background: rgba(255,255,255,0.1); }
+
+    .packing-collections-grid {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 12px;
+      margin-top: 16px;
+      margin-bottom: 24px;
+    }
+    @media (max-width: 500px) {
+      .packing-collections-grid { grid-template-columns: 1fr; }
+    }
+    .packing-col-pill {
+      background: rgba(255,255,255,0.05);
+      color: #FFFFFF;
+      padding: 12px 16px;
+      border-radius: var(--radius-md);
+      font-size: 14px;
+      font-weight: 500;
+      cursor: pointer;
+      border: 2px solid transparent;
+      transition: all 200ms var(--ease);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      user-select: none;
+    }
+    .packing-col-pill.selected {
+      background: rgba(255,255,255,0.12);
+      color: #FFFFFF;
+    }
+    .packing-modal-card {
+      background: rgba(20,20,30,0.95);
+      border: 1px solid rgba(255,255,255,0.1);
+      border-radius: var(--radius-xl);
+      padding: 32px;
+      max-width: 600px;
+      width: 90%;
+      display: flex;
+      flex-direction: column;
+      transform: scale(0.95);
+      transition: transform 250ms var(--ease);
+      box-shadow: 0 20px 60px rgba(255, 255, 255, 0.18);
+      color: white !important;
+    }
+    .modal-overlay.visible .packing-modal-card { transform: scale(1); }
+    .packing-title { font-size: 22px; font-weight: 600; margin-bottom: 4px; color: white !important; }
+    .packing-subtitle { font-size: 14px; color: rgba(255,255,255,0.6) !important; margin-bottom: 24px; }
+
+    .apple-input {
+      background: rgba(255,255,255,0.05);
+      border: none;
+      border-radius: 12px;
+      padding: 14px 16px;
+      font-family: var(--font);
+      font-size: 14px;
+      color: var(--text);
+      width: 100%;
+      outline: none;
+      transition: background 150ms;
+    }
+    .apple-input:focus { background: rgba(255,255,255,0.08); }
+    .apple-input::placeholder { color: var(--text-3); }
+
+    .packing-form-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 16px;
+      margin-bottom: 24px;
+    }
+    @media (max-width: 500px) {
+      .packing-form-grid { grid-template-columns: 1fr; }
+    }
+
+    .packing-selected-list {
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      margin-bottom: 24px;
+    }
+    .packing-selected-item {
+      background: rgba(255,255,255,0.05);
+      border-radius: 12px;
+      padding: 12px;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+    .packing-selected-item span { flex: 1; font-size: 14px; font-weight: 500; }
+    .packing-selected-item input { width: 100px; }
+    .packing-selected-item select {
+      background: rgba(255,255,255,0.08);
+      border: none;
+      border-radius: 8px;
+      padding: 10px;
+      font-family: var(--font);
+      font-size: 14px;
+      color: var(--text);
+      outline: none;
+    }
+    .confetti-piece {
+      position: fixed;
+      top: -10px;
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      pointer-events: none;
+      z-index: 9999;
+      animation: confettiFall linear forwards;
+    }
+    @keyframes confettiFall {
+      0% { transform: translateY(-10px) rotate(0deg); opacity: 1; }
+      100% { transform: translateY(100vh) rotate(360deg); opacity: 0; }
+    }
+    @keyframes pulseLive {
+      0% { opacity: 1; transform: scale(1); }
+      50% { opacity: 0.6; transform: scale(1.15); }
+      100% { opacity: 1; transform: scale(1); }
+    }
+
+    /* ── NUEVO MAPA DE ALMACÉN ── */
+    .wh-slot {
+      border-radius: 12px;
+      padding: 16px;
+      position: relative;
+      transition: background 300ms var(--ease), border-color 300ms ease, box-shadow 300ms ease !important;
+      display: flex;
+      flex-direction: column;
+      border: 1px solid rgba(255,255,255,0.2) !important;
+      box-shadow: 0 2px 12px rgba(0,0,0,0.3);
+    }
+    .wh-slot:hover {
+      border-color: rgba(255,255,255,0.5) !important;
+      box-shadow: 0 0 12px rgba(255,255,255,0.05) !important;
+    }
+    .wh-slot-name {
+      font-size: 15px;
+      font-weight: 700;
+      color: #FFFFFF;
+      margin-bottom: 12px;
+    }
+    .wh-slot.empty {
+      background: rgba(255,255,255,0.05);
+    }
+    .wh-empty {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      color: rgba(255,255,255,0.5);
+      margin-top: 10px;
+      margin-bottom: 10px;
+      pointer-events: none;
+    }
+    .wh-empty span {
+      font-size: 13px;
+      font-weight: 500;
+    }
+    .wh-empty svg { opacity: 0.7; }
+
+    .wh-slot.single.pending { background: rgba(255,159,10,0.15) !important; border-left: 4px solid #FF9F0A; }
+    .wh-slot.single.delivered { background: rgba(52,199,89,0.1) !important; border-left: 4px solid #34C759; }
+    .wh-slot.multi { background: rgba(255,255,255,0.06); border: 1px solid rgba(255, 255, 255, 0.05); }
+
+    .wh-card { display: flex; flex-direction: column; gap: 4px; }
+    .wh-c-id { font-size: 14px; font-weight: 600; color: #FFFFFF; }
+    .wh-c-recv { font-size: 13px; color: #FFFFFF; }
+    .wh-c-stk, .wh-c-date { font-size: 12px; color: rgba(255,255,255,0.5); }
+
+    .wh-badge-estado {
+      align-self: flex-start;
+      font-size: 11px;
+      font-weight: 600;
+      padding: 4px 10px;
+      border-radius: 980px;
+      margin-top: 8px;
+      margin-bottom: 12px;
+    }
+    .wh-badge-estado.pending { background: rgba(255,218,100,0.2) !important; color: #FF9F0A !important; }
+    .wh-badge-estado.delivered { background: rgba(52,199,89,0.15) !important; color: #34C759 !important; }
+
+    .wh-toggles {
+      display: flex;
+      background: rgba(255, 255, 255, 0.05);
+      border-radius: 8px;
+      padding: 2px;
+      margin-bottom: 12px;
+    }
+    .wh-tog {
+      flex: 1;
+      background: transparent;
+      border: none;
+      font-size: 12px;
+      font-weight: 500;
+      padding: 6px 0;
+      border-radius: 6px;
+      color: rgba(255,255,255,0.5);
+      cursor: pointer;
+      transition: all 200ms ease;
+    }
+    .wh-tog.active {
+      background: white !important;
+      color: #1D1D1F !important;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.3);
+    }
+
+    .wh-btn-del {
+      align-self: flex-start;
+      background: #FF3B30;
+      color: #FFF;
+      font-size: 12px;
+      font-weight: 600;
+      padding: 6px 14px;
+      border-radius: 980px;
+      border: none;
+      cursor: pointer;
+      transition: transform 200ms;
+    }
+    .wh-btn-del:hover { transform: scale(1.05); }
+
+    .wh-multi-summary {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      background: rgba(255,255,255,0.05);
+      padding: 8px 12px;
+      border-radius: 8px;
+      cursor: pointer;
+    }
+    .wh-multi-badge {
+      background: #007AFF;
+      color: #FFF;
+      font-size: 12px;
+      font-weight: 600;
+      padding: 4px 10px;
+      border-radius: 980px;
+    }
+    .wh-multi-list {
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      margin-top: 12px;
+      max-height: 280px;
+      overflow-y: auto;
+      padding-right: 4px;
+    }
+
+    /* ══════════════════════════════════════════════
+       RESPONSIVE — GLOBAL SAFE (ALL SIZES)
+    ══════════════════════════════════════════════ */
+    * {
+      box-sizing: border-box;
+    }
+
+    /* ══════════════════════════════════════════════
+       RESPONSIVE — TABLET  (≤1024px)
+    ══════════════════════════════════════════════ */
+    @media (max-width: 1024px) {
+      /* Navbar */
+      .navbar { padding: 0 16px; }
+
+      /* Main layout */
+      .main { padding: 24px 16px 80px; }
+
+      /* Collections — 2 columns */
+      .collections-grid { grid-template-columns: repeat(2, 1fr); }
+
+      /* Warehouse map — keep 2x3 but smaller gap */
+      .warehouse-map { gap: 12px !important; }
+
+      /* Zones — keep 2x2 but compact */
+      .zones-grid { gap: 12px; }
+
+      /* Packing button */
+      .btn-packing { max-width: 100%; }
+
+      /* Modals 90% width */
+      .modal-card { max-width: 90% !important; width: 90% !important; }
+      .packing-modal-card { max-width: 90% !important; width: 90% !important; }
+    }
+
+    /* ══════════════════════════════════════════════
+       RESPONSIVE — MOBILE  (≤768px)
+    ══════════════════════════════════════════════ */
+    @media (max-width: 768px) {
+      /* ── Navbar ── */
+      .navbar { padding: 0 16px; }
+
+      .nav-brand {
+        font-size: 0;
+        letter-spacing: 0;
+      }
+      .nav-brand::after {
+        content: 'HSS';
+        font-size: 13px;
+        font-weight: 600;
+        letter-spacing: 0.1em;
+        color: #FFFFFF;
+        text-transform: uppercase;
+      }
+
+      /* ESP32 status — dot only, hide text */
+      #esp-status-text { display: none; }
+      .nav-status { gap: 4px; }
+
+      .nav-tab { padding: 5px 12px; font-size: 12px; }
+
+      /* ── Main layout ── */
+      .main { padding: 16px 16px 80px; }
+
+      /* ── Collections grid — 1 column ── */
+      .collections-grid { grid-template-columns: 1fr; gap: 16px; }
+
+      /* ── Collection card — compact carousel ── */
+      .carousel-wrap { height: 160px; }
+
+      /* Editable name — min 16px for no iOS zoom */
+      .col-name { font-size: 16px !important; }
+
+      /* Card action buttons — row, full width each */
+      .col-actions {
+        flex-direction: row;
+        gap: 8px;
+      }
+      .col-actions .btn { flex: 1; justify-content: center; font-size: 13px; }
+
+      /* ── Packing SELECT START — full width ── */
+      .btn-packing {
+        width: 100% !important;
+        max-width: 100% !important;
+        font-size: 14px;
+        padding: 14px 24px;
+      }
+
+      /* ── Live process panel ── */
+      #live-process-panel {
+        padding: 16px !important;
+        max-width: 100% !important;
+      }
+
+      /* Order info grid → single column */
+      #live-process-panel > div[style*="grid-template-columns"] {
+        grid-template-columns: 1fr !important;
+        gap: 8px !important;
+      }
+
+      /* Main counter — smaller */
+      #live-counter-text { font-size: 48px !important; }
+
+      /* Progress by collection — name and count in column */
+      #live-cols-list > div {
+        flex-direction: column !important;
+        align-items: flex-start !important;
+        gap: 4px !important;
+      }
+
+      /* ── Production zones ── */
+      .zones-grid { grid-template-columns: 1fr !important; gap: 12px; }
+
+      /* ── Warehouse map — 2x3 compact ── */
+      .warehouse-map {
+        grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)) !important;
+        gap: 8px !important;
+      }
+      .wh-slot { padding: 10px; }
+      .wh-slot-name { font-size: 13px; margin-bottom: 8px; }
+      .wh-c-id { font-size: 13px; }
+      .wh-c-recv, .wh-c-stk, .wh-c-date { font-size: 11px; }
+
+      /* ── Panel grid — single column ── */
+      .panel-grid { grid-template-columns: 1fr !important; gap: 16px; }
+
+      /* ── Order history ── */
+      #order-search {
+        width: 100% !important;
+        font-size: 16px !important;
+      }
+
+      /* Filter pills — horizontal scroll, no wrap */
+      .order-filters {
+        flex-wrap: nowrap !important;
+        overflow-x: auto !important;
+        -webkit-overflow-scrolling: touch;
+        padding-bottom: 4px;
+        scrollbar-width: none;
+      }
+      .order-filters::-webkit-scrollbar { display: none; }
+
+      /* Order cards — badge top right */
+      .order-top {
+        flex-wrap: wrap;
+        gap: 6px;
+      }
+      .order-badge { margin-left: auto; }
+
+      .order-col-item {
+        flex-direction: column;
+        gap: 2px;
+      }
+
+      /* ── Modals — bottom sheet style ── */
+      .modal-overlay {
+        align-items: flex-end !important;
+      }
+
+      .modal-card {
+        max-width: 100% !important;
+        width: 100% !important;
+        border-radius: 20px 20px 0 0 !important;
+        position: fixed !important;
+        bottom: 0 !important;
+        left: 0 !important;
+        right: 0 !important;
+        transform: translateY(20px) !important;
+        transition: transform 300ms var(--ease) !important;
+      }
+      .modal-overlay.visible .modal-card {
+        transform: translateY(0) !important;
+      }
+
+      .packing-modal-card {
+        max-width: 100% !important;
+        width: 100% !important;
+        border-radius: 20px 20px 0 0 !important;
+        position: fixed !important;
+        bottom: 0 !important;
+        left: 0 !important;
+        right: 0 !important;
+        transform: translateY(20px) !important;
+        transition: transform 300ms var(--ease) !important;
+        max-height: 90vh !important;
+        overflow-y: auto !important;
+      }
+      .modal-overlay.visible .packing-modal-card {
+        transform: translateY(0) !important;
+      }
+
+      /* ── Section gap ── */
+      .section + .section { margin-top: 28px; }
+
+      /* ── Demo FAB ── */
+      .demo-fab {
+        bottom: 16px;
+        right: 16px;
+        padding: 9px 14px;
+        font-size: 12px;
+      }
+
+      /* ── Inputs / iOS ── */
+      input, textarea, select {
+        font-size: 16px !important;
+      }
+      button { min-height: 44px; }
+
+      .ip-input { font-size: 16px !important; }
+    }
+
+    /* ══════════════════════════════════════════════
+       RESPONSIVE — SMALL MOBILE  (≤390px)
+    ══════════════════════════════════════════════ */
+    @media (max-width: 390px) {
+      .main { padding: 12px 12px 80px; }
+
+      .section-title { font-size: 15px; }
+
+      .btn-packing { font-size: 13px; padding: 12px 16px; }
+
+      .nav-tab { padding: 5px 10px; font-size: 11px; }
+
+      /* Warehouse slots even smaller */
+      .warehouse-map {
+        grid-template-columns: repeat(auto-fill, minmax(120px, 1fr)) !important;
+        gap: 6px !important;
+      }
+      .wh-slot { padding: 8px; }
+      .wh-slot-name { font-size: 12px; }
+
+      /* Zone cards compact */
+      .zone-name { font-size: 13px; }
+
+      /* Packing modal compact */
+      .packing-form-grid { grid-template-columns: 1fr !important; }
+    }
+
+    /* ══════════════════════════════════════════════
+       NO HORIZONTAL SCROLL SAFETY
+    ══════════════════════════════════════════════ */
+    @media (max-width: 768px) {
+      * {
+        max-width: 100%;
+        box-sizing: border-box !important;
+      }
+
+      body {
+        overflow-x: hidden !important;
+      }
+
+      html, body { overflow-x: hidden; }
+      .main, .collections-grid, .zones-grid, .warehouse-map,
+      .panel-grid, .section { max-width: 100%; }
+
+      /* ── HISTORIAL DE EVENTOS ── */
+      .event-log {
+        width: 100% !important;
+        max-width: 100% !important;
+        overflow-x: hidden !important;
+        box-sizing: border-box !important;
+      }
+
+      .event-row {
+        width: 100% !important;
+        box-sizing: border-box !important;
+        overflow: hidden !important;
+      }
+
+      .event-msg {
+        overflow: hidden !important;
+        text-overflow: ellipsis !important;
+        font-size: 12px !important;
+        min-width: 0 !important;
+      }
+
+      .event-time {
+        font-size: 11px !important;
+        flex-shrink: 0 !important;
+      }
+
+      /* ── HISTORIAL DE PEDIDOS ── */
+      #orders-list,
+      .order-list {
+        width: 100% !important;
+        max-width: 100% !important;
+        overflow-x: hidden !important;
+        box-sizing: border-box !important;
+      }
+
+      .order-card {
+        width: 100% !important;
+        box-sizing: border-box !important;
+        overflow: hidden !important;
+      }
+
+      .order-id {
+        font-size: 14px !important;
+        overflow: hidden !important;
+        text-overflow: ellipsis !important;
+        white-space: nowrap !important;
+        max-width: 55% !important;
+      }
+
+      /* Filter pills — horizontal scroll */
+      .order-filters {
+        display: flex !important;
+        overflow-x: auto !important;
+        white-space: nowrap !important;
+        padding-bottom: 8px !important;
+        -webkit-overflow-scrolling: touch !important;
+        scrollbar-width: none !important;
+        max-width: 100% !important;
+        width: 100% !important;
+      }
+      .order-filters::-webkit-scrollbar { display: none !important; }
+
+      /* ── CONEXIÓN ESP32 ── */
+      .esp-connect-bar {
+        flex-direction: column !important;
+        align-items: stretch !important;
+        width: 100% !important;
+        box-sizing: border-box !important;
+        gap: 8px !important;
+      }
+
+      .ip-input {
+        width: 100% !important;
+        max-width: 100% !important;
+        box-sizing: border-box !important;
+        margin-bottom: 0 !important;
+      }
+
+      .esp-connect-bar .btn {
+        width: 100% !important;
+        box-sizing: border-box !important;
+        justify-content: center !important;
+      }
+
+      .retry-badge {
+        text-align: center !important;
+        width: 100% !important;
+        box-sizing: border-box !important;
+      }
+
+      /* Sections container */
+      #sec-esp .card {
+        width: 100% !important;
+        box-sizing: border-box !important;
+        overflow-x: hidden !important;
+      }
+    }
+
+  </style>
+</head>
+<body>
+
+<!-- ════════════════════════════════════
+     NAVBAR
+════════════════════════════════════ -->
+<nav class="navbar">
+  <span class="nav-brand">HERMES STICKER SYSTEM</span>
+
+  <div class="nav-tabs">
+    <a href="index.html" class="nav-tab" id="tab-catalog">Catálogo</a>
+    <a href="setpoint.html" class="nav-tab active" id="tab-panel">Panel de Control</a>
+    <a href="stats.html" class="nav-tab" id="tab-stats">Estadísticas</a>
+  </div>
+
+  <div class="nav-status">
+    <span class="status-dot disconnected" id="esp-dot"></span>
+    <span id="esp-status-text">Desconectado</span>
+  </div>
+</nav>
+
+<!-- ════════════════════════════════════
+     MAIN CONTENT
+════════════════════════════════════ -->
+<main class="main">
+
+  <!-- ── SECTION 1: COLECCIONES ── -->
+  <section class="section" id="sec-colecciones">
+    <div style="display: flex; flex-direction: column; align-items: center; margin-bottom: 32px; position: relative;">
+      <button class="btn-packing" onclick="openPackingStep1()">PACKING SELECT START</button>
+      <div id="packing-success-badge" class="badge badge-green" style="opacity: 0; transition: opacity 300ms; position: absolute; bottom: -28px; font-size: 13px; font-weight: 500;"></div>
+    </div>
+
+    <!-- Live Process Panel -->
+    <div id="live-process-panel" style="display: none; background: rgba(255,255,255,0.06); border-radius: 20px; box-shadow: 0 2px 12px rgba(0,0,0,0.3); padding: 24px; margin-top: 32px; width: 100%; max-width: 440px; position: relative; margin-bottom: 24px;">
+      
+      <!-- Cancel button -->
+      <button class="btn btn-secondary" style="position: absolute; bottom: 24px; right: 24px; font-size: 12px; padding: 6px 14px; z-index: 10;" onclick="askCancelLiveProcess()">Cancelar proceso</button>
+
+      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+        <span style="font-size: 17px; font-weight: 600; color: #FFFFFF;">Proceso Activo</span>
+        <span id="live-process-badge" style="font-size: 11px; font-weight: 600; padding: 4px 10px; border-radius: 980px; background: rgba(255,255,255,0.05); color: rgba(255,255,255,0.5); letter-spacing: 0.05em; display: flex; align-items: center; gap: 6px;">
+          <span style="font-size: 14px;">●</span> EN ESPERA
+        </span>
+      </div>
+
+      <!-- Order Info 2x2 grid -->
+      <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 24px;">
+        <div style="display: flex; flex-direction: column; gap: 4px;">
+          <span style="font-size: 12px; color: rgba(255,255,255,0.5);">ID:</span>
+          <span id="live-id" style="font-size: 14px; font-weight: 600; color: #FFFFFF;">---</span>
+        </div>
+        <div style="display: flex; flex-direction: column; gap: 4px;">
+          <span style="font-size: 12px; color: rgba(255,255,255,0.5);">Receptor:</span>
+          <span id="live-receptor" style="font-size: 14px; font-weight: 600; color: #FFFFFF;">---</span>
+        </div>
+        <div style="display: flex; flex-direction: column; gap: 4px;">
+          <span style="font-size: 12px; color: rgba(255,255,255,0.5);">Zona:</span>
+          <span id="live-zona" style="font-size: 14px; font-weight: 600; color: #FFFFFF;">---</span>
+        </div>
+        <div style="display: flex; flex-direction: column; gap: 4px;">
+          <span style="font-size: 12px; color: rgba(255,255,255,0.5);">Entrega:</span>
+          <span id="live-entrega" style="font-size: 14px; font-weight: 600; color: #FFFFFF;">---</span>
+        </div>
+      </div>
+
+      <!-- Main Counter -->
+      <div style="text-align: center; margin-bottom: 24px;">
+        <div id="live-counter-text" style="font-size: 64px; font-weight: 700; color: #FFFFFF; line-height: 1; transition: color 300ms ease;">0 / 0</div>
+        <div style="font-size: 13px; color: rgba(255,255,255,0.5); margin-top: 4px; margin-bottom: 12px;">stickers procesados</div>
+        <div style="width: 100%; height: 8px; background: rgba(255,255,255,0.08); border-radius: 980px; overflow: hidden;">
+          <div id="live-main-progress" style="width: 0%; height: 100%; background: #34C759; transition: width 300ms ease, background 300ms ease;"></div>
+        </div>
+      </div>
+
+      <!-- Progress by Collection -->
+      <div id="live-cols-list" style="display: flex; flex-direction: column; gap: 12px; margin-bottom: 40px;">
+        <!-- Populated by JS -->
+      </div>
+
+      <!-- Dynamic Completed Button -->
+      <div id="live-complete-wrapper" style="display: none; align-items: center; justify-content: center; position: absolute; bottom: 20px; left: 0; right: 0;">
+        <button class="btn" style="background: #34C759; color: #FFFFFF; font-size: 15px; font-weight: 600; padding: 14px 32px; border-radius: 980px; border: none; cursor: pointer; box-shadow: 0 4px 12px rgba(52, 199, 89, 0.3); transition: transform 200ms;" onmousedown="this.style.transform='scale(0.95)'" onmouseup="this.style.transform='scale(1)'" onclick="completeLiveProcess()">✓ Liberar Zona y Confirmar</button>
+      </div>
+    </div>
+    
+    <div class="section-header">
+      <h2 class="section-title">Colecciones</h2>
+    </div>
+
+    <div class="collections-grid" id="collections-grid">
+      <!-- Cards rendered by JS -->
+      <div class="col-card" style="align-items:center;justify-content:center;min-height:320px;">
+        <div style="color:var(--text-3);font-size:13px;">Cargando colecciones…</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ── SECTION 2: ESP32 PANEL ── -->
+  <section class="section" id="sec-esp">
+    <h2 class="section-title">Panel de Control</h2>
+
+    <!-- Connection -->
+    <div class="card" style="margin-bottom:20px;">
+      <p class="sub-label">Conexión ESP32</p>
+      <div class="esp-connect-bar">
+        <input
+          type="text"
+          class="ip-input"
+          id="ip-input"
+          placeholder="192.168.1.100"
+          value="192.168.1.100"
+        />
+        <button class="btn btn-primary" id="btn-connect" onclick="toggleESP32()">
+          Conectar
+        </button>
+        <span class="retry-badge" id="retry-badge">Intentos fallidos: 0/3</span>
+      </div>
+    </div>
+
+    <!-- Zones + Warehouse -->
+    <div class="panel-grid">
+
+      <!-- Zones 2x2 -->
+      <div>
+        <p class="sub-label">Zonas de producción</p>
+        <div class="zones-grid" id="zones-grid">
+          <!-- rendered by JS -->
+        </div>
+      </div>
+
+      <!-- Warehouse map -->
+      <div>
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
+          <p class="sub-label" style="font-size: 17px; font-weight: 600; color: #FFFFFF; text-transform: none; letter-spacing: normal; margin-bottom: 0;">Mapa de Almacén</p>
+          <span id="warehouse-counter" style="font-size: 13px; color: rgba(255,255,255,0.5); font-weight: 500;">0 pedidos almacenados</span>
+        </div>
+        <div class="warehouse-map" id="warehouse-map" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 16px;">
+          <!-- rendered by JS -->
+        </div>
+        <div id="warehouse-summary" style="display: flex; gap: 8px; justify-content: center; margin-top: 24px; flex-wrap: wrap;">
+          <!-- rendered by JS -->
+        </div>
+      </div>
+
+    </div>
+
+    <!-- Event log + Maintenance -->
+    <div class="panel-grid" style="margin-top:20px;">
+
+      <!-- Log -->
+      <div class="card">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:4px;">
+          <p class="sub-label" style="margin-bottom:0;">Historial de eventos</p>
+          <button class="btn btn-sm btn-secondary" onclick="clearLog()">Limpiar</button>
+        </div>
+        <div class="event-log" id="event-log"></div>
+      </div>
+
+      <!-- Historial de Pedidos -->
+      <div class="card" style="display:flex;flex-direction:column;gap:16px;">
+        <h3 style="font-size:17px;font-weight:600;margin:0;">Historial de Pedidos</h3>
+        
+        <input type="text" id="order-search" placeholder="Buscar por ID, receptor o zona..." style="background:rgba(255,255,255,0.05);border:none;border-radius:980px;padding:10px 16px;font-family:inherit;font-size:14px;color:#FFFFFF;outline:none;width:100%; transition:background 200ms;" oninput="filterOrders()" />
+        
+        <div style="display:flex;gap:8px;overflow-x:auto;padding-bottom:4px;" class="order-filters">
+          <button class="order-filter-btn" data-filter="all" onclick="setOrderFilter('all')" style="background: rgba(255,255,255,0.06);color:#FFFFFF;border:none;border-radius:980px;padding:6px 14px;font-size:13px;font-family:inherit;font-weight:500;cursor:pointer;white-space:nowrap;transition:all 200ms;">Todos</button>
+          <button class="order-filter-btn" data-filter="en_proceso" onclick="setOrderFilter('en_proceso')" style="background:rgba(255, 255, 255, 0.05);color:#FFFFFF;border:none;border-radius:980px;padding:6px 14px;font-size:13px;font-family:inherit;font-weight:500;cursor:pointer;white-space:nowrap;transition:all 200ms;">En proceso</button>
+          <button class="order-filter-btn" data-filter="completado" onclick="setOrderFilter('completado')" style="background:rgba(255, 255, 255, 0.05);color:#FFFFFF;border:none;border-radius:980px;padding:6px 14px;font-size:13px;font-family:inherit;font-weight:500;cursor:pointer;white-space:nowrap;transition:all 200ms;">Completado</button>
+          <button class="order-filter-btn" data-filter="entregado" onclick="setOrderFilter('entregado')" style="background:rgba(255, 255, 255, 0.05);color:#FFFFFF;border:none;border-radius:980px;padding:6px 14px;font-size:13px;font-family:inherit;font-weight:500;cursor:pointer;white-space:nowrap;transition:all 200ms;">Entregado</button>
+        </div>
+
+        <div id="orders-list" style="display:flex;flex-direction:column;gap:12px;max-height:450px;overflow-y:auto;padding-right:4px;">
+          <!-- Pedidos rendered here -->
+          <div style="text-align:center;color:rgba(255,255,255,0.5);font-size:14px;padding:20px;">Cargando pedidos...</div>
+        </div>
+      </div>
+
+    </div>
+
+  </section>
+
+</main>
+
+<!-- ── MODALS ── -->
+
+<!-- Cancel Process modal -->
+<div class="modal-overlay" id="modal-cancel-live">
+  <div class="modal-card">
+    <div class="modal-title">¿Cancelar el proceso activo?</div>
+    <div class="modal-msg" style="color: rgba(255,255,255,0.5);">Los datos del proceso se perderán y el pedido pasará a estado cancelado.</div>
+    <div class="modal-actions" style="margin-top:10px;">
+      <button class="btn btn-secondary" onclick="closeModal('modal-cancel-live')">Volver</button>
+      <button class="btn btn-primary" style="background:#FF3B30;color:#FFF;border:none;" onclick="confirmCancelLiveProcess()">Cancelar proceso</button>
+    </div>
+  </div>
+</div>
+
+<!-- Liberar Zona Modal -->
+<div class="modal-overlay" id="modal-liberar-zona">
+  <div class="modal-card" style="border-radius: 20px; padding: 32px; max-width: 500px; width: 90%;">
+    <div style="font-size: 22px; font-weight: 600; color: #FFFFFF; margin-bottom: 24px;">Confirmar entrega a almacén</div>
+    
+    <!-- Resumen -->
+    <div style="background: rgba(255,255,255,0.05); border-radius: 12px; padding: 16px; margin-bottom: 16px; font-size: 14px;">
+      <div style="display: flex; justify-content: space-between; margin-bottom: 8px;">
+        <span style="color: rgba(255,255,255,0.5);">Pedido:</span>
+        <span id="lz-id" style="font-weight: 500; color: #FFFFFF;">---</span>
+      </div>
+      <div style="display: flex; justify-content: space-between; margin-bottom: 8px;">
+        <span style="color: rgba(255,255,255,0.5);">Receptor:</span>
+        <span id="lz-receptor" style="font-weight: 500; color: #FFFFFF;">---</span>
+      </div>
+      <div style="display: flex; justify-content: space-between; margin-bottom: 8px;">
+        <span style="color: rgba(255,255,255,0.5);">Total:</span>
+        <span id="lz-total" style="font-weight: 500; color: #FFFFFF;">---</span>
+      </div>
+      <div style="display: flex; justify-content: space-between;">
+        <span style="color: rgba(255,255,255,0.5);">Zona:</span>
+        <span id="lz-zona" style="font-weight: 500; color: #FFFFFF;">---</span>
+      </div>
+    </div>
+    
+    <div style="font-size: 14px; color: rgba(255,255,255,0.5); margin-bottom: 24px; text-align: center;">
+      Pega el Code 128 en el sobre antes de continuar
+    </div>
+    
+    <!-- Slot Section -->
+    <div style="border: 1px solid rgba(255, 255, 255, 0.08); border-radius: 16px; padding: 20px; display: flex; flex-direction: column; align-items: center; margin-bottom: 32px; position: relative;">
+      <div style="font-size: 13px; color: rgba(255,255,255,0.5); margin-bottom: 8px;">Slot de almacén asignado:</div>
+      <div id="lz-slot-badge" style="font-size: 24px; font-weight: 700; color: #FFFFFF; background: rgba(255, 255, 255, 0.05); padding: 8px 24px; border-radius: 980px; margin-bottom: 12px;">---</div>
+      
+      <div style="position: relative; display: inline-block;">
+        <button class="btn btn-secondary btn-sm" style="pointer-events: none;">Cambiar slot</button>
+        <select id="lz-slot-select" onchange="document.getElementById('lz-slot-badge').textContent = this.value" style="position: absolute; inset: 0; opacity: 0; width: 100%; height: 100%; cursor: pointer;">
+          <!-- Options populated by JS -->
+        </select>
+      </div>
+    </div>
+    
+    <div class="modal-actions" style="margin-top: 0;">
+      <button class="btn btn-secondary" onclick="closeModal('modal-liberar-zona')">Cancelar</button>
+      <button class="btn btn-primary" style="background: rgba(255,255,255,0.06); color: #FFFFFF;" onclick="confirmLiberarZona()">Confirmar y almacenar</button>
+    </div>
+  </div>
+</div>
+
+<!-- Packing Step 1 Modal -->
+<div class="modal-overlay" id="modal-packing-step1">
+  <div class="packing-modal-card">
+    <div class="packing-title">Nuevo Pedido</div>
+    <div class="packing-subtitle">Selecciona las colecciones del pedido</div>
+    
+    <div class="packing-collections-grid" id="packing-collections-grid">
+      <!-- llenado por JS -->
+    </div>
+
+    <div class="modal-actions">
+      <button class="btn btn-secondary" onclick="closeModal('modal-packing-step1')">Cancelar</button>
+      <button class="btn btn-primary" id="btn-packing-next" onclick="openPackingStep2()" disabled>Siguiente →</button>
+    </div>
+  </div>
+</div>
+
+<!-- Packing Step 2 Modal -->
+<div class="modal-overlay" id="modal-packing-step2">
+  <div class="packing-modal-card">
+    <div class="packing-title">Datos del Pedido</div>
+    <div class="packing-subtitle" id="packing-error-msg" style="color: #FF3B30;"></div>
+    
+    <div class="packing-form-grid">
+      <input type="text" id="pack-id" class="apple-input" placeholder="ID del pedido (ej: ADJ00841D7)" oninput="checkPackingForm()" />
+      <input type="text" id="pack-name" class="apple-input" placeholder="Nombre completo" oninput="checkPackingForm()" />
+      <input type="text" id="pack-delivery" class="apple-input" placeholder="Número de entrega" />
+      <input type="date" id="pack-date-print" class="apple-input" placeholder="Fecha de impresión" oninput="checkPackingForm()" />
+      <input type="date" id="pack-date-delivery" class="apple-input" placeholder="Fecha de entrega" oninput="checkPackingForm()" />
+      <select id="pack-zone" class="apple-input" onchange="checkPackingForm()">
+        <option value="">Selecciona zona...</option>
+      </select>
+      <select id="pack-slot" class="apple-input" onchange="checkPackingForm()">
+        <option value="">Selecciona slot...</option>
+      </select>
+    </div>
+
+    <div class="sub-label">Colecciones seleccionadas</div>
+    <div class="packing-selected-list" id="packing-selected-list">
+      <!-- llenado por JS -->
+    </div>
+
+    <div class="modal-actions">
+      <button class="btn btn-secondary" onclick="closeModal('modal-packing-step2'); openModal('modal-packing-step1')">← Atrás</button>
+      <button class="btn btn-primary" id="btn-packing-submit" onclick="submitPacking()" disabled>Crear Pedido</button>
+    </div>
+  </div>
+</div>
+
+<!-- Retry modal (attempt 1-2) -->
+<div class="modal-overlay" id="modal-retry">
+  <div class="modal-card">
+    <div class="modal-title" id="modal-retry-title">⚠️ Error de impresión</div>
+    <div class="modal-msg" id="modal-retry-msg">
+      Ha ocurrido un error al enviar el trabajo a la impresora. ¿Deseas reintentar?
+    </div>
+    <div class="modal-actions">
+      <button class="btn btn-secondary" onclick="closeModal('modal-retry')">Cancelar</button>
+      <button class="btn btn-primary" onclick="retryPrint()">Reintentar</button>
+    </div>
+  </div>
+</div>
+
+<!-- Critical modal (attempt 3) -->
+<div class="modal-overlay critical" id="modal-critical">
+  <div class="modal-card">
+    <div class="modal-title" style="color:var(--red);">🛑 Paro total del sistema</div>
+    <div class="modal-msg">
+      Se han superado los 3 intentos fallidos. El sistema se ha detenido por seguridad.<br><br>
+      Verifica el estado de la impresora y el carrete antes de continuar.
+    </div>
+    <div class="modal-actions">
+      <button class="btn btn-danger" onclick="resetSystem()">Reiniciar sistema</button>
+    </div>
+  </div>
+</div>
+
+<!-- Slot detail modal -->
+<div class="modal-overlay" id="modal-slot">
+  <div class="modal-card">
+    <div class="modal-title" id="modal-slot-title">Slot A1</div>
+    <div class="slot-detail" id="modal-slot-body"></div>
+    <div class="modal-actions">
+      <button class="btn btn-secondary" onclick="closeModal('modal-slot')">Cerrar</button>
+    </div>
+  </div>
+</div>
+
+<!-- Delete image modal -->
+<div class="modal-overlay" id="modal-delete-img">
+  <div class="modal-card">
+    <div class="modal-title">¿Eliminar esta imagen?</div>
+    <div class="modal-actions" style="margin-top:10px;">
+      <button class="btn btn-secondary" onclick="closeModal('modal-delete-img')">Cancelar</button>
+      <button class="btn btn-primary" style="background:var(--red);color:#FFF;" id="btn-confirm-delete-img">Eliminar</button>
+    </div>
+  </div>
+</div>
+
+<!-- Create collection modal -->
+<div class="modal-overlay" id="modal-create-col">
+  <div class="modal-card">
+    <div class="modal-title">Nueva Colección</div>
+    <div class="modal-msg" style="margin-top:2px;">
+      <input type="text" id="new-col-name" class="ip-input" style="width:100%;" placeholder="Nombre de la colección" maxlength="40" onkeydown="if(event.key === 'Enter') createCollection()" />
+      <div id="create-col-error" style="color:#FF3B30; font-size:12px; margin-top:8px; display:none;"></div>
+    </div>
+    <div class="modal-actions" style="margin-top:10px;">
+      <button class="btn btn-secondary" onclick="closeModal('modal-create-col'); document.getElementById('new-col-name').value=''; document.getElementById('create-col-error').style.display='none';">Cancelar</button>
+      <button class="btn btn-primary" id="btn-create-col" onclick="createCollection()">Crear</button>
+    </div>
+  </div>
+</div>
+
+<!-- Delete collection modal -->
+<div class="modal-overlay" id="modal-delete-col">
+  <div class="modal-card">
+    <div class="modal-title">¿Eliminar colección?</div>
+    <div class="modal-msg" id="modal-delete-col-msg">Esta acción no se puede deshacer.</div>
+    <div class="modal-actions" style="margin-top:10px;">
+      <button class="btn btn-secondary" onclick="closeModal('modal-delete-col')">Cancelar</button>
+      <button class="btn btn-primary" style="background:#FF3B30;color:#FFF;" id="btn-confirm-delete-col">Eliminar</button>
+    </div>
+  </div>
+</div>
+
+<!-- Create Zone modal -->
+<div class="modal-overlay" id="modal-create-zone">
+  <div class="modal-card">
+    <div class="modal-title">Nueva Zona</div>
+    <div class="modal-msg" style="margin-top:2px;">
+      <input type="text" id="new-zone-name" class="ip-input" style="width:100%;" placeholder="Nombre de la zona" maxlength="40" onkeydown="if(event.key === 'Enter') createZone()" />
+    </div>
+    <div class="modal-actions" style="margin-top:10px;">
+      <button class="btn btn-secondary" onclick="closeModal('modal-create-zone'); document.getElementById('new-zone-name').value='';">Cancelar</button>
+      <button class="btn btn-primary" onclick="createZone()">Crear</button>
+    </div>
+  </div>
+</div>
+
+<!-- Delete Zone modal -->
+<div class="modal-overlay" id="modal-delete-zone">
+  <div class="modal-card">
+    <div class="modal-title">¿Eliminar zona?</div>
+    <div class="modal-msg" id="modal-delete-zone-msg"></div>
+    <div class="modal-actions" style="margin-top:10px;">
+      <button class="btn btn-secondary" onclick="closeModal('modal-delete-zone')">Cancelar</button>
+      <button class="btn btn-primary" style="background:#FF3B30;color:#FFF;" id="btn-confirm-delete-zone">Eliminar</button>
+    </div>
+  </div>
+</div>
+
+<!-- Create Slot modal -->
+<div class="modal-overlay" id="modal-create-slot">
+  <div class="modal-card">
+    <div class="modal-title">Nuevo Slot</div>
+    <div class="modal-msg" style="margin-top:2px;display:flex;flex-direction:column;gap:10px;">
+      <input type="text" id="new-slot-name" class="ip-input" style="width:100%;" placeholder="Nombre del slot (ej. Slot A1)" maxlength="10" onkeydown="if(event.key === 'Enter') document.getElementById('new-slot-cap').focus()" />
+      <input type="number" id="new-slot-cap" class="ip-input" style="width:100%;" placeholder="Capacidad máxima" min="1" onkeydown="if(event.key === 'Enter') createSlot()" />
+    </div>
+    <div class="modal-actions" style="margin-top:10px;">
+      <button class="btn btn-secondary" onclick="closeModal('modal-create-slot'); document.getElementById('new-slot-name').value=''; document.getElementById('new-slot-cap').value='';">Cancelar</button>
+      <button class="btn btn-primary" onclick="createSlot()">Crear</button>
+    </div>
+  </div>
+</div>
+
+<!-- Delete Slot modal -->
+<div class="modal-overlay" id="modal-delete-slot">
+  <div class="modal-card">
+    <div class="modal-title" id="modal-delete-slot-title">¿Eliminar slot?</div>
+    <div class="modal-msg" id="modal-delete-slot-msg"></div>
+    <div class="modal-actions" style="margin-top:10px;">
+      <button class="btn btn-secondary" onclick="closeModal('modal-delete-slot')">Cancelar</button>
+      <button class="btn btn-primary" style="background:#FF3B30;color:#FFF;" id="btn-confirm-delete-slot">Eliminar</button>
+    </div>
+  </div>
+</div>
+
+<!-- Link PDF modal -->
+<div class="modal-overlay" id="modal-pdf-link">
+  <div class="modal-card" style="max-width: 480px; padding: 24px; border-radius: 20px;">
+    <div class="modal-title" style="font-size: 17px; font-weight: 600;">Vincular PDF de Google Drive</div>
+    <div class="modal-msg" style="color: rgba(255,255,255,0.5); font-size: 14px; margin-top: 4px;">
+      Comparte tu archivo en Google Drive como 'Cualquier persona con el link' y pega el enlace aquí.<br>
+      <a href="https://drive.google.com" target="_blank" style="color: #0A84FF; text-decoration: none; display: inline-block; margin-top: 6px;">Abrir Google Drive →</a>
+    </div>
+    <div style="margin-top: 14px;">
+      <input type="text" id="pdf-link-input" style="width: 100%; background: rgba(255,255,255,0.05); border: none; border-radius: 12px; padding: 12px 14px; font-family: inherit; font-size: 14px; outline: none;" placeholder="Pega el enlace de Google Drive aquí" onkeydown="if(event.key==='Enter') savePdfLink()" />
+    </div>
+    <div class="modal-actions" style="margin-top: 14px;">
+      <button class="btn btn-secondary" onclick="closeModal('modal-pdf-link')">Cancelar</button>
+      <button class="btn btn-primary" style="background: rgba(255,255,255,0.06); color: #FFF;" id="btn-save-pdf" onclick="savePdfLink()">Guardar</button>
+    </div>
+  </div>
+</div>
+
+<!-- Eliminar PDF vinculado modal -->
+<div class="modal-overlay" id="modal-delete-pdf">
+  <div class="modal-card">
+    <div class="modal-title">¿Quitar el PDF vinculado?</div>
+    <div class="modal-msg" style="font-size: 14px; color: rgba(255,255,255,0.5);">El enlace actual será eliminado y el visor desaparecerá.</div>
+    <div class="modal-actions" style="margin-top:10px;">
+      <button class="btn btn-secondary" onclick="closeModal('modal-delete-pdf')">Cancelar</button>
+      <button class="btn btn-primary" style="background:#FF3B30;color:#FFF;" onclick="confirmRemovePdf()">Quitar</button>
+    </div>
+  </div>
+</div>
+
+<!-- Modal Eliminar de Almacén -->
+<div class="modal-overlay" id="modal-delete-warehouse">
+  <div class="modal-card">
+    <div class="modal-title" style="margin-bottom: 4px;">¿Eliminar el pedido del almacén?</div>
+    <div class="modal-msg" id="modal-delete-warehouse-msg" style="font-size: 14px; color: rgba(255,255,255,0.5);">Esta acción no se puede deshacer.</div>
+    <div class="modal-actions" style="margin-top:20px;">
+      <button class="btn btn-secondary" onclick="closeModal('modal-delete-warehouse')">Cancelar</button>
+      <button class="btn btn-primary" style="background:#FF3B30;color:#FFF;" id="btn-conf-delete-wh" onclick="confirmDeleteWarehouseOrder()">Eliminar</button>
+    </div>
+  </div>
+</div>
+
+<!-- ── DEMO FAB ── -->
+<button class="demo-fab" id="demo-fab" onclick="toggleDemo()">
+  <svg width="14" height="14" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
+    <circle cx="8" cy="8" r="7" stroke="currentColor" stroke-width="1.5"/>
+    <path d="M6 5.5l5 2.5-5 2.5V5.5z" fill="currentColor"/>
+  </svg>
+  Modo Demo
+</button>
+
+<!-- ══════════════════════════════════════════
+     JAVASCRIPT
+══════════════════════════════════════════ -->
+<script>
+/* ═══════════════════════════════════════
+   API
+═══════════════════════════════════════ */
+const API_URL = window.location.hostname === 'localhost'
+  ? 'http://localhost:3000'
+  : 'https://sticker-system-txi5.onrender.com';
+
+/* ═══════════════════════════════════════
+   STATE
+═══════════════════════════════════════ */
+let ws = null;
+let espConnected = false;
+let maintMode = false;
+let demoActive = false;
+let demoInterval = null;
+let retryCount = 0;
+let currentPrintCollection = null;
+let carousels = {}; // { colId: { index, images, timer } }
+let currentCollections = [];
+let almacenOrders = [];
+let openMultiSlots = new Set();
+let whOrderToDelete = null;
+
+const COLECCIONES_IDS = ['coleccion_a','coleccion_b','coleccion_c','coleccion_d','coleccion_e','coleccion_f'];
+
+/* ════ ZONE & WAREHOUSE DATA ════ */
+const DEFAULT_ZONES = [
+  { id: 'z1', name: 'Zona A', pct: 0, status: 'sin_conexion' },
+  { id: 'z2', name: 'Zona B', pct: 0, status: 'sin_conexion' },
+  { id: 'z3', name: 'Zona C', pct: 0, status: 'sin_conexion' },
+  { id: 'z4', name: 'Zona D', pct: 0, status: 'sin_conexion' },
+];
+
+const DEFAULT_SLOTS = [
+  { id: 'A1', state: 'empty', count: 0, capacity: 120 },
+  { id: 'A2', state: 'empty', count: 0, capacity: 120 },
+  { id: 'A3', state: 'empty', count: 0, capacity: 120 },
+  { id: 'B1', state: 'empty', count: 0, capacity: 120 },
+  { id: 'B2', state: 'empty', count: 0, capacity: 120 },
+  { id: 'B3', state: 'empty', count: 0, capacity: 120 },
+];
+
+let zones = [];
+try {
+  const savedZones = localStorage.getItem('zonas_produccion');
+  zones = savedZones ? JSON.parse(savedZones) : JSON.parse(JSON.stringify(DEFAULT_ZONES));
+} catch(e) { zones = JSON.parse(JSON.stringify(DEFAULT_ZONES)); }
+
+const ZONES_RESET = () => {
+  return zones.map(z => ({ ...z, pct: 0, status: 'sin_conexion' }));
+};
+
+let slots = [];
+try {
+  const savedSlots = localStorage.getItem('slots_almacen');
+  slots = savedSlots ? JSON.parse(savedSlots) : JSON.parse(JSON.stringify(DEFAULT_SLOTS));
+} catch(e) { slots = JSON.parse(JSON.stringify(DEFAULT_SLOTS)); }
+
+const SLOTS_RESET = () => {
+  return slots.map(s => ({ ...s, state: 'empty', count: 0 }));
+};
+
+function saveZones() {
+  localStorage.setItem('zonas_produccion', JSON.stringify(zones));
+}
+
+function saveSlots() {
+  localStorage.setItem('slots_almacen', JSON.stringify(slots));
+}
+
+/* ═══════════════════════════════════════
+   INIT
+═══════════════════════════════════════ */
+document.addEventListener('DOMContentLoaded', () => {
+  loadCollections();
+  renderZones();
+  renderWarehouse();
+  if (typeof renderEmptyLog === 'function') renderEmptyLog();
+  fetchPedidos();
+  fetchAlmacenData();
+});
+
+async function loadCollections() {
+  // Fallback: colecciones vacías si la API no responde
+  const fallback = COLECCIONES_IDS.map((id, i) => ({
+    id,
+    nombre: `Colección ${String.fromCharCode(65 + i)}`,
+    imagenes: []
+  }));
+
+  try {
+    const res = await fetch(`${API_URL}/api/colecciones`);
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const data = await res.json();
+    // data debe ser un array de { id, nombre, imagenes: [{url, public_id}] }
+    currentCollections = Array.isArray(data) ? data : fallback;
+    renderCollections(currentCollections);
+  } catch (err) {
+    console.warn('API no disponible, mostrando carretes vacíos:', err.message);
+    currentCollections = fallback;
+    renderCollections(currentCollections);
+  }
+}
+
+/* ═══════════════════════════════════════
+   COLLECTIONS — RENDER
+═══════════════════════════════════════ */
+
+function renderCollections(data) {
+  const grid = document.getElementById('collections-grid');
+  grid.innerHTML = '';
+
+  data.forEach(col => {
+    carousels[col.id] = {
+      index: 0,
+      images: col.imagenes || [],
+      timer: null
+    };
+
+    const card = document.createElement('div');
+    card.className = 'col-card';
+    card.id = `card-${col.id}`;
+    card.innerHTML = buildColCard(col);
+    grid.appendChild(card);
+
+    startCarousel(col.id);
+  });
+
+  // Agregar tarjeta de "Nueva colección"
+  const addCard = document.createElement('div');
+  addCard.className = 'col-card col-add-card';
+  addCard.onclick = () => {
+    document.getElementById('new-col-name').value = '';
+    const errDiv = document.getElementById('create-col-error');
+    if (errDiv) errDiv.style.display = 'none';
+    openModal('modal-create-col');
+    setTimeout(() => document.getElementById('new-col-name').focus(), 100);
+  };
+  addCard.innerHTML = `
+    <svg width="40" height="40" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <path d="M12 5V19M5 12H19" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+    </svg>
+    <span>Nueva colección</span>
+  `;
+  grid.appendChild(addCard);
+}
+
+function buildColCard(col) {
+  const { id, nombre, imagenes } = col;
+  const imgs = imagenes || [];
+  const count = imgs.length;
+  const slideHtml = count === 0
+    ? `<div class="carousel-empty">
+        <svg width="40" height="40" viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <rect x="5" y="10" width="30" height="22" rx="3" stroke="#AEAEB2" stroke-width="1.8"/>
+          <circle cx="14" cy="18" r="3" stroke="#AEAEB2" stroke-width="1.5"/>
+          <path d="M5 27l8-7 5 5 4-4 8 7" stroke="#AEAEB2" stroke-width="1.5" stroke-linejoin="round"/>
+        </svg>
+        <span>Sin imágenes</span>
+      </div>`
+    : imgs.map((img, i) => {
+        // Cada imagen viene como { url, public_id } o como string (legacy)
+        const src = (img && typeof img === 'object') ? img.url : String(img);
+        const pubId = (img && typeof img === 'object') && img.public_id ? img.public_id : '';
+        return `<div class="carousel-slide${i === 0 ? ' active' : ''}" data-idx="${i}" id="slide-${id}-${i}">
+          <img src="${src}" alt="imagen" loading="lazy" />
+          ${pubId ? `<button class="btn-delete-img" onclick="askDeleteImage('${id}', '${pubId}', ${i})" title="Eliminar imagen">✕</button>` : ''}
+        </div>`;
+      }).join('');
+
+  return `
+    <button class="btn-trash" onclick="askDeleteCol('${id}', '${escHtml(nombre)}')" title="Eliminar colección">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg>
+    </button>
+
+    <div class="col-name-wrap">
+      <input
+        class="col-name"
+        id="name-${id}"
+        value="${escHtml(nombre)}"
+        maxlength="40"
+        onkeydown="nameKeydown(event,'${id}')"
+        onblur="saveName('${id}')"
+      />
+    </div>
+
+    <div class="carousel-wrap" id="carousel-${id}">
+      ${slideHtml}
+      ${count > 1 ? `
+        <button class="carousel-btn prev" onclick="carouselPrev('${id}')">‹</button>
+        <button class="carousel-btn next" onclick="carouselNext('${id}')">›</button>
+      ` : ''}
+    </div>
+    <div class="carousel-counter" id="counter-${id}">
+      ${count === 0 ? '0 imágenes' : `1 / ${count}`}
+    </div>
+
+    ${col.pdf_url ? `
+    <!-- VISOR PDF -->
+    <div id="pdf-container-${id}" style="margin-top: 10px;">
+      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
+        <span style="font-size: 12px; font-weight: 500; color: rgba(255,255,255,0.5);">PDF vinculado</span>
+        <div style="display: flex; gap: 8px;">
+          <button style="border: none; background: transparent; cursor: pointer; font-size: 13px; color: rgba(255,255,255,0.5);" onclick="openPdfModal('${id}', '${col.pdf_url}')" title="Editar enlace">✏️</button>
+          <button style="border: none; background: transparent; cursor: pointer; font-size: 13px; color: rgba(255,255,255,0.5);" onclick="askRemovePdf('${id}')" title="Quitar PDF vinculado">🗑</button>
+        </div>
+      </div>
+      <iframe src="${col.pdf_url}" style="height: 200px; width: 100%; border-radius: 12px; border: none; background: rgba(255,255,255,0.05);"></iframe>
+    </div>
+    ` : ''}
+
+    <div class="col-actions" style="margin-top: 10px;">
+      <button class="btn btn-secondary" onclick="uploadImage('${id}')">
+        + Agregar imagen
+      </button>
+      <button class="btn" style="background: ${col.pdf_url ? 'rgba(10,132,255,0.1)' : 'transparent'}; border: 1px solid rgba(255, 255, 255, 0.15); color: ${col.pdf_url ? '#0A84FF' : '#FFFFFF'}; justify-content: center; transition: transform 250ms var(--ease), opacity 250ms;" onclick="openPdfModal('${id}', '${col.pdf_url || ''}')" onmousedown="this.style.transform='scale(0.97)'" onmouseup="this.style.transform='scale(1)'" onmouseleave="this.style.transform='scale(1)'">
+        Drive Print
+      </button>
+    </div>
+
+    <!-- Input file oculto para esta colección -->
+    <input
+      type="file"
+      id="file-${id}"
+      accept="image/*"
+      style="display:none"
+      onchange="handleFileUpload(event,'${id}')"
+    />
+  `;
+}
+
+function escHtml(str) {
+  return String(str).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+/* ═══════════════════════════════════════
+   CAROUSEL LOGIC
+═══════════════════════════════════════ */
+function startCarousel(id) {
+  const c = carousels[id];
+  if (!c || c.images.length <= 1) return;
+  clearInterval(c.timer);
+  c.timer = setInterval(() => carouselNext(id), 3000);
+}
+
+function carouselGo(id, idx) {
+  const c = carousels[id];
+  if (!c || c.images.length === 0) return;
+  const wrap = document.getElementById(`carousel-${id}`);
+  if (!wrap) return;
+  const slides = wrap.querySelectorAll('.carousel-slide');
+  if (!slides.length) return;
+
+  slides[c.index]?.classList.remove('active');
+  c.index = ((idx % slides.length) + slides.length) % slides.length;
+  slides[c.index]?.classList.add('active');
+
+  const counter = document.getElementById(`counter-${id}`);
+  if (counter) counter.textContent = `${c.index + 1} / ${slides.length}`;
+}
+
+function carouselNext(id) {
+  const c = carousels[id];
+  if (!c) return;
+  carouselGo(id, c.index + 1);
+}
+
+function carouselPrev(id) {
+  const c = carousels[id];
+  if (!c) return;
+  carouselGo(id, c.index - 1);
+}
+
+/* ═══════════════════════════════════════
+   NAME EDIT
+═══════════════════════════════════════ */
+function nameKeydown(e, id) {
+  if (e.key === 'Enter') { e.preventDefault(); saveName(id); e.target.blur(); }
+  if (e.key === 'Escape') { e.target.blur(); }
+}
+
+async function saveName(id) {
+  const input = document.getElementById(`name-${id}`);
+  if (!input) return;
+  const nombre = input.value.trim();
+  if (!nombre) return;
+
+  try {
+    const res = await fetch(`${API_URL}/api/colecciones/${id}/nombre`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ nombre })
+    });
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    addLog(`Colección "${nombre}" renombrada`, 'success');
+  } catch (err) {
+    addLog(`No se pudo guardar el nombre: ${err.message}`, 'error');
+  }
+}
+
+function uploadImage(id) {
+  const fileInput = document.getElementById(`file-${id}`);
+  if (fileInput) fileInput.click();
+}
+
+async function handleFileUpload(event, id) {
+  const file = event.target.files[0];
+  if (!file) return;
+
+  addLog(`Subiendo imagen a ${id}…`, 'info');
+
+  const formData = new FormData();
+  formData.append('imagen', file);
+
+  try {
+    const res = await fetch(`${API_URL}/api/colecciones/${id}/imagenes`, {
+      method: 'POST',
+      body: formData
+    });
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const data = await res.json();
+    addLog(`Imagen subida correctamente a ${id}`, 'success');
+    // Recargar colecciones para reflejar la nueva imagen
+    loadCollections();
+  } catch (err) {
+    addLog(`Error al subir imagen: ${err.message}`, 'error');
+  }
+
+  // Reset input para permitir subir el mismo archivo de nuevo
+  event.target.value = '';
+}
+
+/* ═══════════════════════════════════════
+   DELETE IMAGE
+═══════════════════════════════════════ */
+let imgToDelete = null;
+
+function askDeleteImage(colId, pubId, slideIdx) {
+  imgToDelete = { colId, pubId, slideIdx };
+  document.getElementById('btn-confirm-delete-img').onclick = confirmDeleteImage;
+  openModal('modal-delete-img');
+}
+
+async function confirmDeleteImage() {
+  if (!imgToDelete) return;
+  const { colId, pubId, slideIdx } = imgToDelete;
+  closeModal('modal-delete-img');
+  
+  const slide = document.getElementById(`slide-${colId}-${slideIdx}`);
+  if (slide) {
+    slide.style.transition = 'opacity 300ms';
+    slide.style.opacity = '0';
+  }
+
+  try {
+    const res = await fetch(`${API_URL}/api/colecciones/${colId}/imagenes/${encodeURIComponent(pubId)}`, {
+      method: 'DELETE'
+    });
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    addLog(`Imagen eliminada correctamente`, 'success');
+    
+    // Actualizar datos locales
+    const colObj = currentCollections.find(c => c.id === colId);
+    if (colObj && colObj.imagenes) {
+      colObj.imagenes = colObj.imagenes.filter(img => (img.public_id || img) !== pubId);
+    }
+    
+    setTimeout(() => {
+      // Re-renderizar solo esta tarjeta
+      const card = document.getElementById(`card-${colId}`);
+      if (card && colObj) {
+        clearInterval(carousels[colId]?.timer);
+        carousels[colId] = {
+          index: 0,
+          images: colObj.imagenes,
+          timer: null
+        };
+        card.innerHTML = buildColCard(colObj);
+        startCarousel(colId);
+      }
+    }, 300);
+
+  } catch (err) {
+    addLog(`Error al eliminar imagen: ${err.message}`, 'error');
+    if (slide) slide.style.opacity = ''; // Restaurar si falla
+  }
+}
+
+/* ═══════════════════════════════════════
+   DELETE COLLECTION
+═══════════════════════════════════════ */
+let colToDelete = null;
+
+function askDeleteCol(id, nombre) {
+  colToDelete = { id, nombre };
+  const title = document.querySelector('#modal-delete-col .modal-title');
+  if (title) title.textContent = `¿Eliminar la colección "${nombre}"?`;
+  const msg = document.getElementById('modal-delete-col-msg');
+  if (msg) msg.textContent = 'Esta acción no se puede deshacer.';
+  document.getElementById('btn-confirm-delete-col').onclick = confirmDeleteCol;
+  openModal('modal-delete-col');
+}
+
+async function confirmDeleteCol() {
+  if (!colToDelete) return;
+  const { id, nombre } = colToDelete;
+  closeModal('modal-delete-col');
+  
+  const card = document.getElementById(`card-${id}`);
+  if (card) {
+    card.style.transition = 'opacity 250ms var(--ease), transform 250ms var(--ease)';
+    card.style.opacity = '0';
+    card.style.transform = 'scale(0.95)';
+  }
+
+  try {
+    const res = await fetch(`${API_URL}/api/colecciones/${id}`, {
+      method: 'DELETE'
+    });
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    addLog(`Colección "${nombre}" eliminada`, 'success');
+    
+    currentCollections = currentCollections.filter(c => c.id !== id);
+    if (carousels[id]) {
+      clearInterval(carousels[id].timer);
+      delete carousels[id];
+    }
+    
+    setTimeout(() => {
+      if (card) card.remove();
+    }, 250);
+
+  } catch (err) {
+    addLog(`Error al eliminar colección: ${err.message}`, 'error');
+    if (card) {
+      card.style.opacity = '1';
+      card.style.transform = 'scale(1)';
+    }
+  }
+}
+
+/* ═══════════════════════════════════════
+   CREATE COLLECTION
+═══════════════════════════════════════ */
+async function createCollection() {
+  const input = document.getElementById('new-col-name');
+  const errorDiv = document.getElementById('create-col-error');
+  const btn = document.getElementById('btn-create-col');
+  const nombre = input.value.trim();
+  
+  errorDiv.style.display = 'none';
+  if (!nombre) return;
+  
+  let maxIndex = -1;
+  currentCollections.forEach(c => {
+    if (c.id && c.id.startsWith('coleccion_')) {
+      const suffix = c.id.replace('coleccion_', '');
+      let num = 0;
+      for (let i = 0; i < suffix.length; i++) {
+        num = num * 26 + (suffix.charCodeAt(i) - 97 + 1);
+      }
+      if (num - 1 > maxIndex) maxIndex = num - 1;
+    }
+  });
+  
+  const newIndex = Math.max(currentCollections.length, maxIndex + 1);
+  let resStr = '';
+  let n = newIndex;
+  while (n >= 0) {
+    resStr = String.fromCharCode(97 + (n % 26)) + resStr;
+    n = Math.floor(n / 26) - 1;
+  }
+  const id = `coleccion_${resStr}`;
+  
+  const col = { id, nombre, imagenes: [] };
+  
+  btn.disabled = true;
+  const originalBtnText = btn.innerHTML;
+  btn.innerHTML = `<span class="spinner" style="margin-right:6px;width:12px;height:12px;border-width:1.5px;"></span> Creando...`;
+  
+  try {
+    const res = await fetch(`${API_URL}/api/colecciones`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ id, nombre })
+    });
+    
+    if (!res.ok) {
+      if (res.status === 400 || res.status === 409) {
+        const errorData = await res.json();
+        throw new Error(errorData.error || `Error ${res.status}`);
+      }
+      throw new Error(`HTTP ${res.status}`);
+    }
+    
+    addLog(`Colección "${nombre}" creada`, 'success');
+    
+    // Cerrar modal y resetear
+    closeModal('modal-create-col');
+    input.value = '';
+    btn.disabled = false;
+    btn.innerHTML = originalBtnText;
+    
+    currentCollections.push(col);
+    
+    // Agregar al grid visualmente
+    const grid = document.getElementById('collections-grid');
+    carousels[id] = { index: 0, images: [], timer: null };
+    
+    const card = document.createElement('div');
+    card.className = 'col-card';
+    card.id = `card-${id}`;
+    card.innerHTML = buildColCard(col);
+    
+    // Set animations
+    card.style.opacity = '0';
+    card.style.transform = 'scale(0.95)';
+    card.style.transition = 'opacity 250ms var(--ease), transform 250ms var(--ease)';
+    
+    const addCard = document.querySelector('.col-add-card');
+    if (addCard) {
+      grid.insertBefore(card, addCard);
+    } else {
+      grid.appendChild(card);
+    }
+    
+    // Trigger fade in
+    requestAnimationFrame(() => {
+      card.style.opacity = '1';
+      card.style.transform = 'scale(1)';
+    });
+    
+  } catch (err) {
+    btn.disabled = false;
+    btn.innerHTML = originalBtnText;
+    errorDiv.textContent = `Error: ${err.message}`;
+    errorDiv.style.display = 'block';
+    addLog(`Error creando colección: ${err.message}`, 'error');
+  }
+}
+
+/* ═══════════════════════════════════════
+   DRIVE PRINT & PDF LOGIC
+═══════════════════════════════════════ */
+let currentPdfColId = null;
+
+function openPdfModal(colId, currentUrl) {
+  currentPdfColId = colId;
+  const input = document.getElementById('pdf-link-input');
+  input.value = currentUrl && currentUrl !== 'null' ? currentUrl : '';
+  openModal('modal-pdf-link');
+  setTimeout(() => input.focus(), 100);
+}
+
+async function savePdfLink() {
+  const input = document.getElementById('pdf-link-input');
+  let url = input.value.trim();
+  
+  if (!url) {
+    input.focus();
+    return;
+  }
+
+  // Convert url to embedUrl
+  const embedUrl = url.replace('/view', '/preview').replace('/edit', '/preview');
+
+  const btn = document.getElementById('btn-save-pdf');
+  const ogText = btn.textContent;
+  btn.disabled = true;
+  btn.textContent = 'Guardando...';
+
+  try {
+    const res = await fetch(`${API_URL}/api/colecciones/${currentPdfColId}/pdf`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ pdf_url: embedUrl })
+    });
+
+    if (!res.ok) throw new Error('Error al guardar el PDF');
+
+    // Update state
+    const targetCol = currentCollections.find(c => c.id === currentPdfColId);
+    if (targetCol) {
+      targetCol.pdf_url = embedUrl;
+      const card = document.getElementById(`card-${currentPdfColId}`);
+      if (card) {
+        card.innerHTML = buildColCard(targetCol);
+      }
+    }
+    addLog(`PDF vinculado a colección`, 'success');
+    closeModal('modal-pdf-link');
+  } catch (err) {
+    console.error(err);
+    addLog(`Error guardando PDF: ${err.message}`, 'error');
+  } finally {
+    btn.disabled = false;
+    btn.textContent = ogText;
+  }
+}
+
+function askRemovePdf(colId) {
+  currentPdfColId = colId;
+  openModal('modal-delete-pdf');
+}
+
+async function confirmRemovePdf() {
+  closeModal('modal-delete-pdf');
+
+  try {
+    const res = await fetch(`${API_URL}/api/colecciones/${currentPdfColId}/pdf`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ pdf_url: null })
+    });
+
+    if (!res.ok) throw new Error('Error al quitar el PDF');
+
+    const targetCol = currentCollections.find(c => c.id === currentPdfColId);
+    if (targetCol) {
+      targetCol.pdf_url = null;
+      const card = document.getElementById(`card-${currentPdfColId}`);
+      if (card) {
+        // fade out effect for the existing viewer before rebuild
+        const container = document.getElementById(`pdf-container-${currentPdfColId}`);
+        if (container) {
+          container.style.transition = 'opacity 300ms ease';
+          container.style.opacity = '0';
+          setTimeout(() => {
+            card.innerHTML = buildColCard(targetCol);
+          }, 300);
+        } else {
+          card.innerHTML = buildColCard(targetCol);
+        }
+      }
+    }
+    addLog(`PDF desvinculado`, 'info');
+  } catch (err) {
+    console.error(err);
+    addLog(`Error quitando PDF: ${err.message}`, 'error');
+  }
+}
+
+/* ═══════════════════════════════════════
+   PRINT via WebSocket
+═══════════════════════════════════════ */
+function printCollection(colId) {
+  currentPrintCollection = colId;
+
+  if (!ws || ws.readyState !== WebSocket.OPEN) {
+    // Simulate if demo active
+    if (demoActive) {
+      simulatePrint(colId);
+      return;
+    }
+    addLog(`No hay conexión WebSocket activa`, 'error');
+    retryCount++;
+    updateRetryBadge();
+    handlePrintError();
+    return;
+  }
+
+  ws.send(JSON.stringify({ accion: 'imprimir', coleccion: colId }));
+  addLog(`Trabajo enviado: imprimir ${colId}`, 'info');
+  retryCount = 0;
+  updateRetryBadge();
+}
+
+function simulatePrint(colId) {
+  addLog(`[Demo] Imprimiendo ${colId}…`, 'info');
+  setTimeout(() => addLog(`[Demo] Impresión de ${colId} completada`, 'success'), 1800);
+}
+
+function handlePrintError() {
+  if (retryCount >= 3) {
+    openModal('modal-critical');
+  } else {
+    document.getElementById('modal-retry-title').textContent =
+      `⚠️ Error — Intento ${retryCount} de 3`;
+    document.getElementById('modal-retry-msg').textContent =
+      `No se pudo enviar el trabajo de impresión para la colección "${currentPrintCollection}". ¿Deseas reintentar?`;
+    openModal('modal-retry');
+  }
+}
+
+function retryPrint() {
+  closeModal('modal-retry');
+  if (currentPrintCollection) printCollection(currentPrintCollection);
+}
+
+function resetSystem() {
+  retryCount = 0;
+  updateRetryBadge();
+  closeModal('modal-critical');
+  addLog('Sistema reiniciado por operador', 'info');
+}
+
+/* ═══════════════════════════════════════
+   ESP32
+═══════════════════════════════════════ */
+function toggleESP32() {
+  if (espConnected) disconnectESP32();
+  else connectESP32();
+}
+
+function connectESP32() {
+  const ip = document.getElementById('ip-input').value.trim();
+  if (!ip) return;
+  addLog(`Conectando a ESP32 @ ${ip}…`, 'info');
+
+  try {
+    ws = new WebSocket(`ws://${ip}:81`);
+
+    ws.onopen = () => {
+      espConnected = true;
+      updateESPStatus(true);
+      addLog(`ESP32 conectado (${ip})`, 'success');
+      retryCount = 0;
+      updateRetryBadge();
+    };
+
+    ws.onmessage = (e) => {
+      try {
+        const msg = JSON.parse(e.data);
+        handleWSMessage(msg);
+      } catch {
+        addLog(`WS: ${e.data}`, 'info');
+      }
+    };
+
+    ws.onclose = () => {
+      espConnected = false;
+      updateESPStatus(false);
+      addLog('Conexión ESP32 cerrada', 'warning');
+    };
+
+    ws.onerror = () => {
+      espConnected = false;
+      updateESPStatus(false);
+      addLog('Error de conexión ESP32', 'error');
+    };
+  } catch {
+    addLog('WebSocket no disponible (modo offline)', 'warning');
+  }
+}
+
+function disconnectESP32() {
+  if (ws) { ws.close(); ws = null; }
+  espConnected = false;
+  updateESPStatus(false);
+  addLog('ESP32 desconectado manualmente', 'info');
+}
+
+function updateESPStatus(connected) {
+  const dot  = document.getElementById('esp-dot');
+  const text = document.getElementById('esp-status-text');
+  const btn  = document.getElementById('btn-connect');
+  dot.className = 'status-dot ' + (connected ? 'connected' : 'disconnected');
+  text.textContent = connected ? 'Conectado' : 'Desconectado';
+  btn.textContent  = connected ? 'Desconectar' : 'Conectar';
+  btn.className    = 'btn ' + (connected ? 'btn-danger' : 'btn-primary');
+}
+
+function handleWSMessage(msg) {
+  if (msg.evento === 'sticker_detectado' && msg.pedido_id) {
+    if (typeof handleStickerDetectado === 'function') {
+      handleStickerDetectado(msg.pedido_id);
+    }
+    return;
+  }
+
+  if (msg.zona && msg.pct !== undefined) {
+    const z = zones.find(z => z.id === msg.zona);
+    if (z) {
+      z.pct = msg.pct;
+      z.status = msg.status || z.status;
+      renderZones();
+      addLog(`Zona ${msg.zona}: ${msg.pct}%`, 'info');
+    }
+  }
+  
+  // SECCIÓN HISTORIAL DE PEDIDOS - CONTEO EN TIEMPO REAL
+  if (msg.conteo !== undefined || msg.conteo_actual !== undefined) {
+    const count = msg.conteo !== undefined ? msg.conteo : msg.conteo_actual;
+    let activeExtId = msg.pedido_id;
+    let targetOrder = null;
+    if (activeExtId) {
+      targetOrder = allOrders.find(o => o.id === activeExtId);
+    } else {
+      targetOrder = allOrders.find(o => o.status === 'en_proceso');
+    }
+    
+    if (targetOrder) {
+      targetOrder.conteo_actual = count;
+      const el = document.getElementById(`order-count-${targetOrder.id}`);
+      if (el) {
+        el.textContent = `${count} / ${targetOrder.total_stickers || targetOrder.total || 0}`;
+      }
+    }
+  }
+}
+
+/* ═══════════════════════════════════════
+   HISTORIAL DE PEDIDOS
+═══════════════════════════════════════ */
+let allOrders = [];
+let currentOrderFilter = 'all';
+
+async function fetchPedidos() {
+  try {
+    const res = await fetch(`${API_URL}/api/pedidos`);
+    if (!res.ok) throw new Error('Error al cargar pedidos');
+    const data = await res.json();
+    allOrders = data.sort((a,b) => new Date(b.creado_en) - new Date(a.creado_en));
+  } catch(err) {
+    console.warn(err);
+    allOrders = [];
+  }
+  renderOrders();
+  if (typeof renderLivePanel === 'function') renderLivePanel();
+}
+
+function renderOrders() {
+  const container = document.getElementById('orders-list');
+  if (!container) return;
+  const term = document.getElementById('order-search') ? document.getElementById('order-search').value.toLowerCase() : '';
+  
+  let filtered = allOrders.filter(o => {
+    if (currentOrderFilter !== 'all' && o.status !== currentOrderFilter) return false;
+    if (term) {
+      const matchID = o.id && o.id.toString().toLowerCase().includes(term);
+      const matchReceptor = o.receptor && o.receptor.toLowerCase().includes(term);
+      const matchZona = o.zona && o.zona.toLowerCase().includes(term);
+      if (!matchID && !matchReceptor && !matchZona) return false;
+    }
+    return true;
+  });
+
+  if (filtered.length === 0) {
+    container.innerHTML = '<div style="text-align:center;color:rgba(255,255,255,0.5);font-size:14px;padding:40px;">Sin pedidos registrados</div>';
+    return;
+  }
+
+  container.innerHTML = filtered.map(o => {
+    const statusMap = {
+      'en_proceso': { label: 'En proceso', cls: 'en_proceso' },
+      'completado': { label: 'Completado', cls: 'completado' },
+      'entregado': { label: 'Entregado', cls: 'entregado' }
+    };
+    const st = statusMap[o.status] || { label: o.status, cls: 'entregado' };
+    
+    const safeReceiver = o.receptor || '---';
+    const safeZone = o.zona || '---';
+    const safeDate = o.fecha_entrega || o.delivery_date || o.date_delivery || '---';
+
+    let colRender = '';
+    if (o.colecciones && Array.isArray(o.colecciones)) {
+      colRender = o.colecciones.map((c, i) => `
+        <div class="order-col-item">
+          <span>${i+1}° ${c.nombre || c.id || ''}</span>
+          <span style="color:rgba(255,255,255,0.5);">→ ${c.cantidad || 0} stickers</span>
+        </div>
+      `).join('');
+    }
+
+    const etsy_id = o.etsy_id || '---';
+    const entrega = o.entrega_num || '---';
+    const f_print = o.fecha_impresion || o.print_date || '---';
+    const slot = o.slot || '---';
+    const total = o.total_stickers || o.total || 0;
+    const conteo = o.conteo_actual || o.conteo || 0;
+
+    return `
+      <div class="order-card" onclick="toggleOrderDetails('${o.id}')">
+        <div class="order-top">
+          <div class="order-id">${o.id}</div>
+          <div class="order-badge ${st.cls}">${st.label}</div>
+        </div>
+        <div class="order-bottom">
+          ${safeReceiver} &mdash; ${safeZone} &mdash; ${safeDate}
+        </div>
+        
+        <div class="order-details" id="order-details-${o.id}">
+          <div class="order-detail-row"><span class="order-detail-label">ID Etsy:</span><span>${etsy_id}</span></div>
+          <div class="order-detail-row"><span class="order-detail-label">Receptor:</span><span>${safeReceiver}</span></div>
+          <div class="order-detail-row"><span class="order-detail-label">Número entrega:</span><span>${entrega}</span></div>
+          <div class="order-detail-row"><span class="order-detail-label">Fecha impresión:</span><span>${f_print}</span></div>
+          <div class="order-detail-row"><span class="order-detail-label">Fecha entrega:</span><span>${safeDate}</span></div>
+          <div class="order-detail-row"><span class="order-detail-label">Zona producción:</span><span>${safeZone}</span></div>
+          <div class="order-detail-row"><span class="order-detail-label">Slot almacén:</span><span>${slot}</span></div>
+          
+          <div style="margin-top:12px;color:rgba(255,255,255,0.5);">Colecciones:</div>
+          <div class="order-col-list">
+            ${colRender || '<span style="color:#AEAEB2;font-size:12px;">Sin colecciones</span>'}
+          </div>
+          
+          <div class="order-detail-row" style="font-weight:500;"><span class="order-detail-label" style="color:#FFFFFF;">Total:</span><span>${total} stickers</span></div>
+          <div class="order-detail-row" style="margin-top:4px;"><span class="order-detail-label">Conteo actual:</span><span id="order-count-${o.id}">${conteo} / ${total}</span></div>
+          
+          ${o.status === 'en_proceso' ? `
+            <button class="btn btn-secondary" style="width:100%; justify-content:center; margin-top:16px;" onclick="event.stopPropagation(); window.scrollTo({top: document.getElementById('sec-esp').offsetTop, behavior: 'smooth'});">Ver en proceso</button>
+          ` : ''}
+        </div>
+      </div>
+    `;
+  }).join('');
+}
+
+function setOrderFilter(filter) {
+  currentOrderFilter = filter;
+  document.querySelectorAll('.order-filter-btn').forEach(btn => {
+    if (btn.dataset.filter === filter) {
+      btn.style.background = '#FFFFFF';
+      btn.style.color = '#000000';
+    } else {
+      btn.style.background = 'rgba(255, 255, 255, 0.05)';
+      btn.style.color = '#FFFFFF';
+    }
+  });
+  renderOrders();
+}
+
+function filterOrders() {
+  renderOrders();
+}
+
+function toggleOrderDetails(id) {
+  const el = document.getElementById(`order-details-${id}`);
+  if (!el) return;
+  if (el.classList.contains('open')) {
+    el.classList.remove('open');
+  } else {
+    el.classList.add('open');
+  }
+}
+
+/* ═══════════════════════════════════════
+   ZONES
+═══════════════════════════════════════ */
+function zoneStatus(pct, status) {
+  if (status === 'sin_conexion') return { label: '⚪ Sin conexión', cls: 'badge-gray' };
+  if (status === 'sin_caja') return { label: '⚠️ Sin caja', cls: 'badge-yellow' };
+  if (status === 'llena' || pct >= 90) return { label: '🔴 Llena', cls: 'badge-red' };
+  return { label: '🟢 Lista', cls: 'badge-green' };
+}
+
+function progressColor(pct, status) {
+  if (status === 'sin_conexion') return 'var(--text-3)';
+  if (pct >= 90) return 'var(--red)';
+  if (pct >= 70) return 'var(--yellow)';
+  return 'var(--green)';
+}
+
+function renderZones() {
+  const grid = document.getElementById('zones-grid');
+  grid.innerHTML = zones.map(z => {
+    const st = zoneStatus(z.pct, z.status);
+    return `
+      <div class="zone-card" id="zone-card-${z.id}">
+        <button class="btn-trash" onclick="askDeleteZone('${z.id}', '${escHtml(z.name)}')">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg>
+        </button>
+        <div class="zone-header">
+          <span class="zone-name">${z.name}</span>
+          <span class="badge ${st.cls}">${st.label}</span>
+        </div>
+        <div class="progress-wrap">
+          <div class="progress-bar">
+            <div class="progress-fill" style="width:${z.pct}%;background:${progressColor(z.pct, z.status)};"></div>
+          </div>
+          <div class="progress-meta">
+            <span class="progress-pct">${z.pct}%</span>
+          </div>
+        </div>
+      </div>
+    `;
+  }).join('') + `
+      <div class="zone-card add-special-card" onclick="openModal('modal-create-zone'); setTimeout(() => document.getElementById('new-zone-name').focus(), 100);">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <line x1="12" y1="5" x2="12" y2="19"></line>
+          <line x1="5" y1="12" x2="19" y2="12"></line>
+        </svg>
+        <span>Nueva zona</span>
+      </div>
+  `;
+}
+
+function createZone() {
+  const input = document.getElementById('new-zone-name');
+  const name = input.value.trim();
+  if (!name) return;
+
+  const newId = 'z' + (Date.now() % 100000);
+  const z = { id: newId, name: name, pct: 0, status: 'sin_conexion' };
+  zones.push(z);
+  saveZones();
+  
+  closeModal('modal-create-zone');
+  input.value = '';
+
+  renderZones();
+  const card = document.getElementById(`zone-card-${newId}`);
+  if (card) {
+    card.classList.add('fade-in');
+  }
+}
+
+let zoneToDelete = null;
+
+function askDeleteZone(id, name) {
+  zoneToDelete = { id, name };
+  const title = document.querySelector('#modal-delete-zone .modal-title');
+  if (title) title.textContent = `¿Eliminar la zona "${name}"?`;
+  const msg = document.getElementById('modal-delete-zone-msg');
+  if (msg) msg.textContent = 'Esta acción no se puede deshacer.';
+  document.getElementById('btn-confirm-delete-zone').onclick = confirmDeleteZone;
+  openModal('modal-delete-zone');
+}
+
+function confirmDeleteZone() {
+  if (!zoneToDelete) return;
+  const { id } = zoneToDelete;
+  closeModal('modal-delete-zone');
+
+  const card = document.getElementById(`zone-card-${id}`);
+  if (card) {
+    card.style.transition = 'opacity 250ms var(--ease), transform 250ms var(--ease)';
+    card.style.opacity = '0';
+    card.style.transform = 'scale(0.95)';
+  }
+
+  setTimeout(() => {
+    zones = zones.filter(z => z.id !== id);
+    saveZones();
+    renderZones();
+  }, 250);
+}
+
+/* ═══════════════════════════════════════
+   WAREHOUSE MAP
+═══════════════════════════════════════ */
+function slotProgressColor(pct) {
+  if (pct >= 90) return 'var(--red)';
+  if (pct >= 50) return 'var(--yellow)';
+  return 'var(--green)';
+}
+
+function slotBadgeLabel(state) {
+  return { empty: 'Vacío', partial: 'Parcial', full: 'Lleno' }[state] || 'Vacío';
+}
+
+function renderSingleOrderCard(o, isInnerCard = false) {
+  const isDelivered = o.status === 'entregado';
+  const f_date = o.fecha_entrega || o.creado_en || '---';
+  let dateStr = f_date;
+  if (f_date !== '---') {
+    const dObj = new Date(f_date);
+    if (!isNaN(dObj)) dateStr = dObj.toLocaleDateString('es-ES');
+  }
+  
+  const bg = isDelivered ? '#F0FFF4' : '#FFF8E7';
+  const border = isDelivered ? '#34C759' : '#FF9F0A';
+  const badgeCls = isDelivered ? 'delivered' : 'pending';
+  const badgeText = isDelivered ? 'Entregado' : 'Sin entregar';
+
+  const styleStr = isInnerCard 
+    ? `background: ${bg}; border-left: 4px solid ${border}; border-radius: 12px; padding: 12px; box-shadow: 0 1px 4px rgba(255, 255, 255, 0.05);`
+    : `display: flex; flex-direction: column; gap: 4px;`;
+
+  return `
+    <div style="${styleStr}">
+      <div class="wh-c-id">${escHtml(o.etsy_id || o.id)}</div>
+      <div class="wh-c-recv">${escHtml(o.receptor || 'Sin Nombre')}</div>
+      <div class="wh-c-stk">${o.total_stickers || o.total || 0} stickers</div>
+      <div class="wh-c-date">${dateStr}</div>
+      
+      <div class="wh-badge-estado ${badgeCls}">${badgeText}</div>
+      
+      <div class="wh-toggles">
+        <button class="wh-tog ${!isDelivered ? 'active' : ''}" onclick="event.stopPropagation(); setAlmacenOrderStatus('${o.id}', 'completado')">Sin entregar</button>
+        <button class="wh-tog ${isDelivered ? 'active' : ''}" onclick="event.stopPropagation(); setAlmacenOrderStatus('${o.id}', 'entregado')">Entregado</button>
+      </div>
+      
+      ${isDelivered ? `<button class="wh-btn-del" onclick="event.stopPropagation(); askDeleteAlmacen('${o.id}')">🗑 Eliminar</button>` : ''}
+    </div>
+  `;
+}
+
+function toggleMultiSlot(slotId) {
+  const list = document.getElementById(`multi-list-${slotId}`);
+  const chev = document.getElementById(`chev-m-${slotId}`);
+  if (!list) return;
+  if (list.style.display === 'none') {
+    list.style.display = 'flex';
+    chev.textContent = '▲';
+    openMultiSlots.add(slotId);
+  } else {
+    list.style.display = 'none';
+    chev.textContent = '▼';
+    openMultiSlots.delete(slotId);
+  }
+}
+
+function renderWarehouse() {
+  const map = document.getElementById('warehouse-map');
+  const counterLabel = document.getElementById('warehouse-counter');
+  const summaryBox = document.getElementById('warehouse-summary');
+
+  if (!map) return;
+
+  let totalStored = 0;
+  let totalPending = 0;
+  let totalDelivered = 0;
+
+  const grouped = {};
+  almacenOrders.forEach(o => {
+    const sId = o.slot_almacen || o.slot || '---';
+    if (!grouped[sId]) grouped[sId] = [];
+    grouped[sId].push(o);
+    totalStored++;
+    if (o.status === 'entregado') totalDelivered++;
+    else totalPending++;
+  });
+
+  const slotCards = slots.map(s => {
+    const orders = grouped[s.id] || [];
+    
+    let stateClass = 'empty';
+    let contentHtml = '';
+    
+    if (orders.length === 0) {
+      contentHtml = `
+        <div class="wh-empty">
+          <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"></path><polyline points="3.27 6.96 12 12.01 20.73 6.96"></polyline><line x1="12" y1="22.08" x2="12" y2="12"></line></svg>
+          <span>Vacío</span>
+        </div>
+      `;
+    } else if (orders.length === 1) {
+      const o = orders[0];
+      stateClass = o.status === 'entregado' ? 'single delivered' : 'single pending';
+      contentHtml = renderSingleOrderCard(o, false);
+    } else {
+      stateClass = 'multi';
+      const isOpen = openMultiSlots.has(s.id);
+      contentHtml = `
+        <div class="wh-multi-summary" onclick="toggleMultiSlot('${s.id}')">
+          <span class="wh-multi-badge">${orders.length} pedidos</span>
+          <span class="wh-multi-chev" id="chev-m-${s.id}">${isOpen ? '▲' : '▼'}</span>
+        </div>
+        <div class="wh-multi-list" id="multi-list-${s.id}" style="display: ${isOpen ? 'flex' : 'none'};">
+          ${orders.map(o => renderSingleOrderCard(o, true)).join('')}
+        </div>
+      `;
+    }
+
+    return `
+      <div class="wh-slot ${stateClass}" id="slot-card-${s.id}">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
+          <span class="wh-slot-name" style="margin: 0;">${escHtml(s.id)}</span>
+          <button class="slot-trash" style="position: static; opacity: 1; opacity: 0.6; padding: 4px;" onclick="event.stopPropagation();askDeleteSlot('${s.id}')" title="Eliminar slot">🗑</button>
+        </div>
+        ${contentHtml}
+      </div>
+    `;
+  }).join('');
+
+  // Add-slot card, mantengo el diseño discreto adaptado al grid
+  const addCard = `
+    <div class="add-special-card" style="min-height: 180px; border-radius: 12px;" onclick="openAddSlotModal()">
+      <svg width="28" height="28" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" style="margin-bottom:8px;">
+        <path d="M12 5V19M5 12H19" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+      </svg>
+      <span>Nuevo slot</span>
+    </div>
+  `;
+
+  map.innerHTML = slotCards + addCard;
+
+  if (counterLabel) {
+    counterLabel.textContent = `${totalStored} pedido${totalStored !== 1 ? 's' : ''} almacenado${totalStored !== 1 ? 's' : ''}`;
+  }
+
+  if (summaryBox) {
+    summaryBox.innerHTML = `
+      <div style="background: rgba(255,255,255,0.05); color: #FFFFFF; font-size: 13px; font-weight: 500; padding: 6px 14px; border-radius: 980px;">📦 Total almacenados: ${totalStored}</div>
+      <div style="background: #FFF8E7; color: #D97706; font-size: 13px; font-weight: 600; padding: 6px 14px; border-radius: 980px;">⏳ Sin entregar: ${totalPending}</div>
+      <div style="background: #F0FFF4; color: #276749; font-size: 13px; font-weight: 600; padding: 6px 14px; border-radius: 980px;">✓ Entregados: ${totalDelivered}</div>
+    `;
+  }
+}
+
+async function fetchAlmacenData() {
+  try {
+    const url = new URL(`${API_URL}/api/pedidos`);
+    url.searchParams.append('estado', 'completado,entregado');
+    const res = await fetch(url);
+    if (!res.ok) throw new Error('Network error');
+    let data = await res.json();
+    
+    // Filtrado seguro local
+    almacenOrders = data.filter(o => o.status === 'completado' || o.status === 'entregado');
+    renderWarehouse();
+  } catch (e) {
+    console.warn("fetch almacen fallback array: ", e);
+    // Fallback: usar allOrders si fallara
+    almacenOrders = allOrders.filter(o => o.status === 'completado' || o.status === 'entregado');
+    renderWarehouse();
+  }
+}
+
+async function setAlmacenOrderStatus(id, newState) {
+  try {
+    const res = await fetch(`${API_URL}/api/pedidos/${id}/estado`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ estado: newState })
+    });
+    if (!res.ok) throw new Error('Error guardando estado');
+    
+    await fetchAlmacenData();
+    // Re-fetch historical
+    fetchPedidos();
+    addLog(`Pedido ${id} → ${newState}`, 'success');
+  } catch(e) {
+    console.error(e);
+    alert('Error al cambiar el estado del pedido.');
+  }
+}
+
+function askDeleteAlmacen(id) {
+  whOrderToDelete = id;
+  const msg = document.getElementById('modal-delete-warehouse-msg');
+  if (msg) msg.textContent = `¿Eliminar el pedido ${id} del almacén? Esta acción no se puede deshacer.`;
+  openModal('modal-delete-warehouse');
+}
+
+async function confirmDeleteWarehouseOrder() {
+  if (!whOrderToDelete) return;
+  const idEl = whOrderToDelete;
+  closeModal('modal-delete-warehouse');
+  
+  try {
+    const res = await fetch(`${API_URL}/api/pedidos/${idEl}`, { method: 'DELETE' });
+    if (!res.ok) throw new Error('Error al eliminar');
+    
+    // Suavizar visual antes del refetch
+    const cardEl = document.getElementById(`wh-card-${idEl}`);
+    if (cardEl) {
+      cardEl.style.transition = 'opacity 300ms, transform 300ms';
+      cardEl.style.opacity = '0';
+      cardEl.style.transform = 'scale(0.95)';
+    }
+
+    setTimeout(async () => {
+      whOrderToDelete = null;
+      await fetchAlmacenData();
+      fetchPedidos();
+      addLog(`Pedido ${idEl} eliminado del almacén`, 'info');
+    }, 300);
+
+  } catch(e) {
+    console.error(e);
+    alert('Error al eliminar el pedido.');
+  }
+}
+
+function openAddSlotModal() {
+  document.getElementById('new-slot-name').value = '';
+  document.getElementById('new-slot-cap').value = '';
+  openModal('modal-create-slot');
+  setTimeout(() => document.getElementById('new-slot-name').focus(), 100);
+}
+
+/* ─ Inline capacity edit ─ */
+function startEditCap(id) {
+  const s = slots.find(x => x.id === id);
+  if (!s) return;
+  const card = document.getElementById(`slot-card-${id}`);
+  if (!card) return;
+  const capVal = card.querySelector('.cap-val');
+  if (!capVal) return;
+
+  const input = document.createElement('input');
+  input.type = 'number';
+  input.min = '1';
+  input.value = s.capacity;
+  input.className = 'cap-inline';
+  input.onclick = e => e.stopPropagation();
+
+  input.addEventListener('keydown', e => {
+    if (e.key === 'Enter') { e.preventDefault(); input.blur(); }
+    if (e.key === 'Escape') { input.blur(); }
+  });
+
+  input.addEventListener('blur', () => {
+    const val = parseInt(input.value);
+    if (!isNaN(val) && val >= 1) {
+      s.capacity = val;
+      // Recalculate state
+      s.state = s.count === 0 ? 'empty' : s.count >= s.capacity ? 'full' : 'partial';
+      saveSlots();
+    }
+    renderWarehouse();
+  });
+
+  capVal.replaceWith(input);
+  input.focus();
+  input.select();
+}
+
+/* ─ Delete slot ─ */
+let slotToDelete = null;
+
+function askDeleteSlot(id) {
+  const s = slots.find(x => x.id === id);
+  if (!s) return;
+  slotToDelete = { id };
+  const title = document.getElementById('modal-delete-slot-title');
+  if (title) title.textContent = `¿Eliminar el slot "${s.id}"?`;
+  const msg = document.getElementById('modal-delete-slot-msg');
+  if (msg) msg.textContent = 'Esta acción no se puede deshacer.';
+  document.getElementById('btn-confirm-delete-slot').onclick = confirmDeleteSlot;
+  openModal('modal-delete-slot');
+}
+
+function confirmDeleteSlot() {
+  if (!slotToDelete) return;
+  const { id } = slotToDelete;
+  closeModal('modal-delete-slot');
+
+  const card = document.getElementById(`slot-card-${id}`);
+  if (card) {
+    card.style.transition = 'opacity 300ms var(--ease), transform 300ms var(--ease)';
+    card.style.opacity = '0';
+    card.style.transform = 'scale(0.95)';
+  }
+
+  setTimeout(() => {
+    slots = slots.filter(s => s.id !== id);
+    saveSlots();
+    renderWarehouse();
+  }, 300);
+}
+
+/* ─ Create slot ─ */
+function createSlot() {
+  const nameInput = document.getElementById('new-slot-name');
+  const capInput  = document.getElementById('new-slot-cap');
+  const name = nameInput.value.trim();
+  const cap  = parseInt(capInput.value);
+
+  if (!name) { nameInput.focus(); return; }
+  if (isNaN(cap) || cap < 1) { capInput.focus(); return; }
+
+  const newSlot = { id: name, state: 'empty', count: 0, capacity: cap };
+  slots.push(newSlot);
+  saveSlots();
+
+  closeModal('modal-create-slot');
+  nameInput.value = '';
+  capInput.value  = '';
+
+  renderWarehouse();
+
+  // Fade-in the new slot card
+  const card = document.getElementById(`slot-card-${name}`);
+  if (card) {
+    card.style.opacity = '0';
+    card.style.transform = 'scale(0.92)';
+    card.style.transition = 'opacity 300ms var(--ease), transform 300ms var(--ease)';
+    requestAnimationFrame(() => {
+      card.style.opacity = '1';
+      card.style.transform = 'scale(1)';
+    });
+  }
+}
+
+function showSlotDetail(id) {
+  const s = slots.find(x => x.id === id);
+  if (!s) return;
+  const labels = { empty: 'Vacío', partial: 'Parcial', full: 'Lleno' };
+  document.getElementById('modal-slot-title').textContent = `Slot ${id}`;
+  document.getElementById('modal-slot-body').innerHTML = `
+    <div class="slot-detail-row">
+      <span class="slot-detail-label">Estado</span>
+      <span class="slot-detail-value">${labels[s.state]}</span>
+    </div>
+    <div class="slot-detail-row">
+      <span class="slot-detail-label">Stickers</span>
+      <span class="slot-detail-value">${s.count} / ${s.capacity}</span>
+    </div>
+    <div class="slot-detail-row">
+      <span class="slot-detail-label">Ocupación</span>
+      <span class="slot-detail-value">${Math.round(s.count/s.capacity*100)}%</span>
+    </div>
+  `;
+  openModal('modal-slot');
+}
+
+/* ═══════════════════════════════════════
+   RETRY BADGE
+═══════════════════════════════════════ */
+function updateRetryBadge() {
+  const badge = document.getElementById('retry-badge');
+  badge.textContent = `Intentos fallidos: ${retryCount}/3`;
+  badge.classList.toggle('alert', retryCount >= 3);
+}
+
+/* ═══════════════════════════════════════
+   MAINTENANCE
+═══════════════════════════════════════ */
+function toggleMaint() {
+  maintMode = !maintMode;
+  const track = document.getElementById('maint-toggle');
+  const ctrl  = document.getElementById('maint-controls');
+  track.classList.toggle('on', maintMode);
+  ctrl.classList.toggle('disabled', !maintMode);
+  // Solo registrar en el historial si hay conexión real o demo activo
+  if (espConnected || demoActive) {
+    addLog(maintMode ? 'Modo mantenimiento activado' : 'Modo mantenimiento desactivado', maintMode ? 'warning' : 'success');
+  }
+}
+
+function maintCmd(cmd) {
+  if (!maintMode) return;
+  if (ws && ws.readyState === WebSocket.OPEN) {
+    ws.send(JSON.stringify({ accion: 'mantenimiento', comando: cmd }));
+    addLog(`Comando mantenimiento: ${cmd}`, 'info');
+  } else if (demoActive) {
+    addLog(`[Demo] Mantenimiento → ${cmd}`, 'info');
+  } else {
+    addLog(`Sin conexión para ejecutar: ${cmd}`, 'error');
+  }
+}
+
+/* ═══════════════════════════════════════
+   EVENT LOG
+═══════════════════════════════════════ */
+function renderEmptyLog() {
+  const log = document.getElementById('event-log');
+  log.innerHTML = `
+    <div style="display:flex;align-items:center;justify-content:center;height:80px;">
+      <span style="font-size:12px;color:var(--text-3);">Sin eventos — esperando conexión o modo demo</span>
+    </div>
+  `;
+}
+
+function addLog(msg, type = 'info') {
+  const log = document.getElementById('event-log');
+  const MAX = 20;
+
+  // Limpiar el placeholder vacío si existía
+  const placeholder = log.querySelector('[data-empty-placeholder]');
+  if (placeholder) placeholder.remove();
+  // También limpiar si solo hay el div de "sin eventos"
+  if (log.children.length === 1 && log.firstElementChild && !log.firstElementChild.classList.contains('event-row')) {
+    log.innerHTML = '';
+  }
+
+  const now = new Date();
+  const hh = String(now.getHours()).padStart(2,'0');
+  const mm = String(now.getMinutes()).padStart(2,'0');
+  const ss = String(now.getSeconds()).padStart(2,'0');
+
+  const row = document.createElement('div');
+  row.className = 'event-row';
+  row.innerHTML = `
+    <div class="event-dot ${type}"></div>
+    <span class="event-time">${hh}:${mm}:${ss}</span>
+    <span class="event-msg">${escHtml(msg)}</span>
+  `;
+
+  log.appendChild(row);
+
+  // Keep only last 20
+  while (log.children.length > MAX) log.removeChild(log.firstChild);
+
+  // Scroll to bottom
+  log.scrollTop = log.scrollHeight;
+}
+
+function clearLog() {
+  document.getElementById('event-log').innerHTML = '';
+  // Solo añadir confirmación si hay conexión real o demo activo
+  if (espConnected || demoActive) {
+    addLog('Historial limpiado', 'info');
+  } else {
+    renderEmptyLog();
+  }
+}
+
+/* ═══════════════════════════════════════
+   MODALS
+═══════════════════════════════════════ */
+function openModal(id) {
+  document.getElementById(id).classList.add('visible');
+}
+
+function closeModal(id) {
+  document.getElementById(id).classList.remove('visible');
+}
+
+// Close on overlay click
+document.querySelectorAll('.modal-overlay').forEach(overlay => {
+  overlay.addEventListener('click', e => {
+    if (e.target === overlay && overlay.id !== 'modal-critical') {
+      overlay.classList.remove('visible');
+    }
+  });
+});
+
+/* ═══════════════════════════════════════
+   DEMO MODE
+═══════════════════════════════════════ */
+function toggleDemo() {
+  demoActive = !demoActive;
+  const btn = document.getElementById('demo-fab');
+  btn.classList.toggle('active', demoActive);
+  btn.innerHTML = demoActive
+    ? `<svg width="14" height="14" viewBox="0 0 16 16" fill="none"><rect x="4" y="3" width="3" height="10" rx="1.2" fill="currentColor"/><rect x="9" y="3" width="3" height="10" rx="1.2" fill="currentColor"/></svg> Demo ON`
+    : `<svg width="14" height="14" viewBox="0 0 16 16" fill="none"><circle cx="8" cy="8" r="7" stroke="currentColor" stroke-width="1.5"/><path d="M6 5.5l5 2.5-5 2.5V5.5z" fill="currentColor"/></svg> Modo Demo`;
+
+  if (demoActive) {
+    updateESPStatus(true);
+    addLog('[Demo] Simulación activada', 'success');
+    startDemoLoop();
+  } else {
+    clearInterval(demoInterval);
+    demoInterval = null;
+    // Resetear zonas y slots a estado de sin conexión
+    zones = ZONES_RESET();
+    slots = SLOTS_RESET();
+    renderZones();
+    renderWarehouse();
+    retryCount = 0;
+    updateRetryBadge();
+    // Solo mantener conectado si hay WebSocket real activo
+    if (!espConnected) {
+      updateESPStatus(false);
+    }
+    // Limpiar el historial de eventos del demo y mostrar placeholder
+    document.getElementById('event-log').innerHTML = '';
+    renderEmptyLog();
+  }
+}
+
+function startDemoLoop() {
+  clearInterval(demoInterval);
+  demoInterval = setInterval(() => {
+    if (!demoActive) return;
+
+    // Mutate zones randomly
+    zones.forEach(z => {
+      const delta = Math.floor(Math.random() * 7) - 2;
+      z.pct = Math.min(100, Math.max(0, z.pct + delta));
+      if (z.pct >= 95) z.status = 'llena';
+      else if (z.pct === 0) z.status = 'sin_caja';
+      else z.status = 'lista';
+    });
+    renderZones();
+
+    // Mutate slots randomly
+    slots.forEach(s => {
+      const delta = Math.floor(Math.random() * 5) - 1;
+      s.count = Math.min(s.capacity, Math.max(0, s.count + delta));
+      s.state = s.count === 0 ? 'empty' : s.count >= s.capacity ? 'full' : 'partial';
+    });
+    renderWarehouse();
+
+    // Log
+    const msgs = [
+      ['Sensor zona A ok', 'success'],
+      ['Carrete cargado correctamente', 'success'],
+      ['Presión cinta: 2.4 bar', 'info'],
+      ['Buffer zona B al 80%', 'warning'],
+      ['Sticker impreso correctamente', 'success'],
+      ['Temperatura cabezal: 45°C', 'info'],
+    ];
+    const [msg, type] = msgs[Math.floor(Math.random() * msgs.length)];
+    addLog(`[Demo] ${msg}`, type);
+
+  }, 5000);
+}
+
+/* ═══════════════════════════════════════
+   PACKING SELECT LOGIC
+═══════════════════════════════════════ */
+let packingSelectedCols = [];
+
+function openPackingStep1() {
+  packingSelectedCols = [];
+  const grid = document.getElementById('packing-collections-grid');
+  grid.innerHTML = '';
+  
+  currentCollections.forEach(col => {
+    const el = document.createElement('div');
+    el.className = 'packing-col-pill';
+    el.innerHTML = `<span>${escHtml(col.nombre)}</span> <span class="check" style="display:none;">✓</span>`;
+    el.onclick = () => togglePackingCol(col.id, col.nombre, el);
+    grid.appendChild(el);
+  });
+  
+  document.getElementById('btn-packing-next').disabled = true;
+  openModal('modal-packing-step1');
+}
+
+function togglePackingCol(id, nombre, el) {
+  const idx = packingSelectedCols.findIndex(c => c.id === id);
+  if (idx >= 0) {
+    packingSelectedCols.splice(idx, 1);
+    el.classList.remove('selected');
+    el.querySelector('.check').style.display = 'none';
+  } else {
+    packingSelectedCols.push({ id, nombre, cantidad: '', orden: packingSelectedCols.length + 1 });
+    el.classList.add('selected');
+    el.querySelector('.check').style.display = 'inline';
+  }
+  document.getElementById('btn-packing-next').disabled = packingSelectedCols.length === 0;
+}
+
+function openPackingStep2() {
+  closeModal('modal-packing-step1');
+  
+  document.getElementById('pack-id').value = '';
+  document.getElementById('pack-name').value = '';
+  document.getElementById('pack-delivery').value = '';
+  document.getElementById('pack-date-print').value = '';
+  document.getElementById('pack-date-delivery').value = '';
+  document.getElementById('packing-error-msg').textContent = 'Comprueba todos los campos obligatorios';
+  document.getElementById('packing-error-msg').style.color = 'var(--text-3)';
+  
+  const zSel = document.getElementById('pack-zone');
+  zSel.innerHTML = '<option value="">Selecciona zona...</option>';
+  zones.forEach(z => {
+    zSel.innerHTML += `<option value="${z.id}">${escHtml(z.name)}</option>`;
+  });
+  
+  const sSel = document.getElementById('pack-slot');
+  sSel.innerHTML = '<option value="">Selecciona slot...</option>';
+  slots.forEach(s => {
+    sSel.innerHTML += `<option value="${s.id}">Slot ${escHtml(s.id)}</option>`;
+  });
+  
+  const list = document.getElementById('packing-selected-list');
+  list.innerHTML = '';
+  
+  packingSelectedCols.forEach((c, index) => {
+    const item = document.createElement('div');
+    item.className = 'packing-selected-item';
+    
+    let orderOpts = '';
+    for (let i = 1; i <= packingSelectedCols.length; i++) {
+        orderOpts += `<option value="${i}" ${i === c.orden ? 'selected' : ''}>${i}°</option>`;
+    }
+    
+    item.innerHTML = `
+      <span>${escHtml(c.nombre)}</span>
+      <input type="number" class="apple-input" placeholder="Cantidad" min="1" value="${c.cantidad}" oninput="packingUpdateCol(${index}, 'cantidad', this.value)" style="padding: 10px;"/>
+      <select onchange="packingUpdateCol(${index}, 'orden', this.value)">
+        ${orderOpts}
+      </select>
+    `;
+    list.appendChild(item);
+  });
+  
+  checkPackingForm();
+  
+  setTimeout(() => openModal('modal-packing-step2'), 250);
+}
+
+function packingUpdateCol(index, key, value) {
+  if (key === 'cantidad') packingSelectedCols[index].cantidad = parseInt(value, 10) || 0;
+  if (key === 'orden') packingSelectedCols[index].orden = parseInt(value, 10) || 1;
+  checkPackingForm();
+}
+
+function checkPackingForm() {
+  const id = document.getElementById('pack-id').value.trim();
+  const dateP = document.getElementById('pack-date-print').value;
+  const dateD = document.getElementById('pack-date-delivery').value;
+  const zone = document.getElementById('pack-zone').value;
+  const slot = document.getElementById('pack-slot').value;
+  
+  let colsValid = true;
+  for (let c of packingSelectedCols) {
+    if (!c.cantidad || c.cantidad <= 0) {
+      colsValid = false;
+      break;
+    }
+  }
+  
+  const isValid = id !== '' && dateP !== '' && dateD !== '' && colsValid;
+  const btn = document.getElementById('btn-packing-submit');
+  btn.disabled = !isValid;
+  
+  const errMsg = document.getElementById('packing-error-msg');
+  if (isValid) {
+    errMsg.textContent = 'Todo listo para crear';
+    errMsg.style.color = '#34C759'; // green
+  } else {
+    errMsg.textContent = 'Comprueba todos los campos obligatorios y cantidades';
+    errMsg.style.color = 'var(--text-3)';
+  }
+  
+  return isValid;
+}
+
+async function submitPacking() {
+  if (!checkPackingForm()) return;
+  const submitBtn = document.getElementById('btn-packing-submit');
+  submitBtn.disabled = true;
+  submitBtn.textContent = 'Creando...';
+  
+  const payload = {
+    id_pedido: document.getElementById('pack-id').value.trim(),
+    nombre_receptor: document.getElementById('pack-name').value.trim(),
+    numero_entrega: document.getElementById('pack-delivery').value.trim(),
+    fecha_impresion: document.getElementById('pack-date-print').value,
+    fecha_entrega: document.getElementById('pack-date-delivery').value,
+    zona_produccion: document.getElementById('pack-zone').value,
+    slot_almacen: document.getElementById('pack-slot').value,
+    colecciones: packingSelectedCols
+  };
+  
+  try {
+    const res = await fetch(`${API_URL}/api/pedidos`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload)
+    });
+    
+    const data = await res.json();
+    if (!res.ok) {
+      const errMsg = document.getElementById('packing-error-msg');
+      errMsg.style.color = '#FF3B30';
+      if (res.status === 409 || (data.error && data.error.includes('exist'))) {
+        errMsg.textContent = 'Este ID ya existe';
+      } else {
+        errMsg.textContent = data.error || 'Error al crear pedido';
+      }
+      submitBtn.disabled = false;
+      submitBtn.textContent = 'Crear Pedido';
+      return;
+    }
+    
+    closeModal('modal-packing-step2');
+    addLog(`📦 Pedido ${payload.id_pedido} creado — ${payload.nombre_receptor}`, 'success');
+    
+    const badge = document.getElementById('packing-success-badge');
+    badge.textContent = `✓ Pedido ${payload.id_pedido} creado`;
+    badge.style.opacity = '1';
+    
+    setTimeout(() => {
+      badge.style.opacity = '0';
+      setTimeout(() => badge.textContent = '', 300);
+    }, 3000);
+    
+    submitBtn.disabled = false;
+    submitBtn.textContent = 'Crear Pedido';
+    
+  } catch(err) {
+    const errMsg = document.getElementById('packing-error-msg');
+    errMsg.style.color = '#FF3B30';
+    errMsg.textContent = 'Error de conexión';
+    submitBtn.disabled = false;
+    submitBtn.textContent = 'Crear Pedido';
+  }
+}
+
+/* ═══════════════════════════════════════
+   LIVE PROCESS
+═══════════════════════════════════════ */
+let liveEsperaTimeout = null;
+
+function renderLivePanel() {
+  const activeOrder = allOrders.find(o => o.status === 'en_proceso');
+  const panel = document.getElementById('live-process-panel');
+  if (!panel) return;
+  
+  if (!activeOrder) {
+    panel.style.display = 'none';
+    return;
+  }
+  
+  panel.style.display = 'block';
+
+  document.getElementById('live-id').textContent = activeOrder.id;
+  document.getElementById('live-receptor').textContent = activeOrder.receptor || activeOrder.nombre_receptor || '---';
+  document.getElementById('live-zona').textContent = activeOrder.zona || activeOrder.zona_produccion || '---';
+  document.getElementById('live-entrega').textContent = activeOrder.fecha_entrega || activeOrder.delivery_date || '---';
+
+  updateLiveCounterUI(activeOrder, false);
+}
+
+function updateLiveCounterUI(order, animateConfetti = false) {
+  const total = order.total_stickers || order.total || 0;
+  let current = order.conteo_actual || 0;
+  if (current > total && total > 0) current = total; // cap visually
+  
+  const pct = total > 0 ? Math.min(100, (current / total) * 100) : 0;
+  
+  const counterText = document.getElementById('live-counter-text');
+  if (counterText) counterText.textContent = `${current} / ${total}`;
+  
+  const progBar = document.getElementById('live-main-progress');
+  if (progBar) {
+    progBar.style.width = `${pct}%`;
+    if (pct < 70) progBar.style.background = '#34C759';
+    else if (pct < 100) progBar.style.background = '#FF9F0A';
+    else progBar.style.background = '#248A3D';
+  }
+  
+  const badge = document.getElementById('live-process-badge');
+  const btnWrap = document.getElementById('live-complete-wrapper');
+  
+  if (current >= total && total > 0) {
+    if (counterText) counterText.style.color = '#34C759';
+    if (badge) badge.innerHTML = `<span style="color:#34C759;">●</span> COMPLETADO`;
+    if (btnWrap) btnWrap.style.display = 'flex';
+    if (animateConfetti) triggerConfetti();
+  } else {
+    if (counterText) counterText.style.color = '#FFFFFF';
+    if (btnWrap) btnWrap.style.display = 'none';
+  }
+  
+  // Update collections progress
+  const colsDiv = document.getElementById('live-cols-list');
+  if (colsDiv && order.colecciones && Array.isArray(order.colecciones)) {
+    let html = '';
+    let accumulated = 0;
+    
+    order.colecciones.forEach((c, idx) => {
+      const colQty = parseInt(c.cantidad) || 0;
+      let colProgress = 0;
+      let status = 'pendiente';
+      
+      const colStart = accumulated;
+      const colEnd = accumulated + colQty;
+      
+      if (current >= colEnd) {
+        colProgress = colQty;
+        status = 'completada';
+      } else if (current > colStart) {
+        colProgress = current - colStart;
+        status = 'en_curso';
+      } else {
+        colProgress = 0;
+        status = 'pendiente';
+      }
+      
+      accumulated += colQty;
+      
+      const isEnCurso = (status === 'en_curso') || (status === 'pendiente' && current === colStart && idx === 0 && current < total);
+      const bg = isEnCurso ? 'rgba(255,255,255,0.05)' : 'transparent';
+      
+      let badgeHtml = '';
+      if (status === 'completada') badgeHtml = '<span style="font-size:11px;font-weight:600;color:#34C759;background:rgba(52,199,89,0.1);padding:4px 8px;border-radius:6px;">Completada</span>';
+      else if (status === 'en_curso') badgeHtml = '<span style="font-size:11px;font-weight:600;color:#0A84FF;background:rgba(10,132,255,0.1);padding:4px 8px;border-radius:6px;">En curso</span>';
+      else badgeHtml = '<span style="font-size:11px;font-weight:600;color:#AEAEB2;background:rgba(255, 255, 255, 0.05);padding:4px 8px;border-radius:6px;">Pendiente</span>';
+      
+      const pctCol = colQty > 0 ? (colProgress / colQty) * 100 : 0;
+      
+      html += `
+        <div style="background: ${bg}; padding: 10px 12px; border-radius: 12px; transition: background 200ms;">
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+            <span style="font-size: 14px; font-weight: 500; color: #FFFFFF;">${idx+1}° ${c.nombre || c.id}</span>
+            <div style="display: flex; align-items: center; gap: 10px;">
+              <span style="font-size: 13px; font-weight: 600; color: rgba(255,255,255,0.5);">${colProgress} / ${colQty}</span>
+              ${badgeHtml}
+            </div>
+          </div>
+          <div style="width: 100%; height: 4px; background: rgba(255, 255, 255, 0.05); border-radius: 980px; overflow: hidden;">
+            <div style="width: ${pctCol}%; height: 100%; background: ${status === 'completada' ? '#34C759' : (status === 'en_curso' ? '#0A84FF' : 'transparent')}; transition: width 300ms ease;"></div>
+          </div>
+        </div>
+      `;
+    });
+    colsDiv.innerHTML = html;
+  }
+}
+
+function handleStickerDetectado(pedido_id) {
+  const order = allOrders.find(o => o.id === pedido_id);
+  if (!order) return;
+  if (order.status !== 'en_proceso') return;
+  
+  if (!order.conteo_actual) order.conteo_actual = 0;
+  
+  const total = order.total_stickers || order.total || 0;
+  if (order.conteo_actual >= total && total > 0) return; // Ya completado
+  
+  // Increase count
+  order.conteo_actual++;
+  const current = order.conteo_actual;
+  
+  // Set ESP active indicator
+  const badge = document.getElementById('live-process-badge');
+  if (current <= total && badge) {
+    badge.innerHTML = `<span style="color:#34C759; animation: pulseLive 1.5s infinite;">●</span> EN VIVO`;
+  }
+  
+  clearTimeout(liveEsperaTimeout);
+  if (current < total) {
+    liveEsperaTimeout = setTimeout(() => {
+      const b = document.getElementById('live-process-badge');
+      if (b && order.conteo_actual < total) {
+        b.innerHTML = `<span style="font-size:14px;color:#AEAEB2;">●</span> EN ESPERA`;
+      }
+    }, 2000);
+  }
+  
+  // Figure out current collection based on new count
+  let currentAccumulated = 0;
+  let detectedCollectionName = "Desconocida";
+  let colX = 0;
+  let colY = 0;
+  
+  if (order.colecciones) {
+    for (let i = 0; i < order.colecciones.length; i++) {
+        let col = order.colecciones[i];
+        let qty = parseInt(col.cantidad) || 0;
+        let p_start = currentAccumulated;
+        let p_end = currentAccumulated + qty;
+        
+        if (current <= p_end) {
+            detectedCollectionName = col.nombre || col.id;
+            colX = current - p_start;
+            colY = qty;
+            break;
+        }
+        currentAccumulated += qty;
+    }
+  }
+
+  // Update history
+  addLog(`✓ Sticker detectado — ${detectedCollectionName} [${colX}/${colY}]`, 'info');
+
+  const justCompleted = (current === total);
+  updateLiveCounterUI(order, justCompleted);
+
+  // Update order item in list view manually to avoid full re-render
+  const orderEl = document.getElementById(`order-count-${order.id}`);
+  if (orderEl) orderEl.textContent = `${current} / ${total}`;
+
+  if (justCompleted) {
+    addLog(`🎉 Pedido ${order.id} completado — ${total} stickers`, 'success');
+    if (ws && ws.readyState === WebSocket.OPEN) {
+      ws.send(JSON.stringify({ evento: "pedido_completado", pedido_id: order.id }));
+    }
+  }
+}
+
+function triggerConfetti() {
+  for (let i = 0; i < 40; i++) {
+    const confetti = document.createElement('div');
+    confetti.className = 'confetti-piece';
+    confetti.style.left = Math.random() * 100 + '%';
+    confetti.style.backgroundColor = ['#34C759', '#FF9F0A', '#0A84FF', '#FF3B30'][Math.floor(Math.random() * 4)];
+    confetti.style.animationDuration = (Math.random() * 1.5 + 1) + 's';
+    document.body.appendChild(confetti);
+    setTimeout(() => confetti.remove(), 2500);
+  }
+}
+
+function completeLiveProcess() {
+  const activeOrder = allOrders.find(o => o.status === 'en_proceso');
+  if (!activeOrder) return;
+
+  document.getElementById('lz-id').textContent = activeOrder.id;
+  document.getElementById('lz-receptor').textContent = activeOrder.receptor || activeOrder.nombre_receptor || '---';
+  
+  const totalStickers = activeOrder.total_stickers || activeOrder.total || 0;
+  document.getElementById('lz-total').textContent = `${totalStickers} stickers`;
+  
+  document.getElementById('lz-zona').textContent = activeOrder.zona || activeOrder.zona_produccion || '---';
+  
+  const currentSlot = activeOrder.slot || activeOrder.slot_almacen || '---';
+  const badge = document.getElementById('lz-slot-badge');
+  badge.textContent = currentSlot;
+
+  const select = document.getElementById('lz-slot-select');
+  select.innerHTML = '';
+  slots.forEach(s => {
+    const isSelected = s.id === currentSlot ? 'selected' : '';
+    select.innerHTML += `<option value="${s.id}" ${isSelected}>Slot ${escHtml(s.id)}</option>`;
+  });
+
+  openModal('modal-liberar-zona');
+}
+
+async function confirmLiberarZona() {
+  const activeOrder = allOrders.find(o => o.status === 'en_proceso');
+  if (!activeOrder) return;
+  
+  const prevSlot = activeOrder.slot || activeOrder.slot_almacen;
+  const newSlot = document.getElementById('lz-slot-badge').textContent;
+  
+  const btn = document.querySelector('#modal-liberar-zona .btn-primary');
+  const ogText = btn.textContent;
+  btn.disabled = true;
+  btn.textContent = 'Confirmando...';
+
+  try {
+    // 1. PUT /api/pedidos/:id/estado
+    await fetch(`${API_URL}/api/pedidos/${activeOrder.id}/estado`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ estado: 'completado', slot_almacen: newSlot })
+    });
+
+    // 2. PUT /api/pedidos/:id/slot si se cambió el slot
+    if (newSlot !== prevSlot && newSlot !== '---' && prevSlot) {
+      await fetch(`${API_URL}/api/pedidos/${activeOrder.id}/slot`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ slot_almacen: newSlot })
+      });
+    }
+
+    // 3. El panel de proceso activo desaparece con fade out suave
+    const panel = document.getElementById('live-process-panel');
+    if (panel) {
+      panel.style.transition = 'opacity 300ms, transform 300ms';
+      panel.style.opacity = '0';
+      panel.style.transform = 'scale(0.95)';
+      setTimeout(() => { panel.style.display = 'none'; panel.style.opacity = '1'; panel.style.transform = 'scale(1)'; }, 300);
+    }
+    
+    // 4. El pedido en historial cambia badge a Completado verde
+    activeOrder.status = 'completado';
+    renderOrders();
+    
+    // 5. El slot en el mapa de almacén se actualiza mostrando el pedido
+    const targetSlotObj = slots.find(s => s.id === newSlot);
+    if (targetSlotObj) {
+      targetSlotObj.count++;
+      targetSlotObj.state = targetSlotObj.count >= targetSlotObj.capacity ? 'full' : 'partial';
+      saveSlots();
+      renderWarehouse();
+    }
+    
+    // 6. Agregar al historial de eventos
+    addLog(`📦 Pedido ${activeOrder.id} → Slot ${newSlot} confirmado`, 'success');
+    
+    // 7. Mandar señal al ESP32 y 9. ZONA DE PRODUCCIÓN LIBERADA
+    const zonaStr = activeOrder.zona || activeOrder.zona_produccion || 'A';
+    const zMatch = zones.find(z => z.id === zonaStr || z.name === zonaStr);
+    const zonaExtract = zMatch ? zMatch.name.replace('Zona ', '').trim() : zonaStr.replace('Zona ', '').trim();
+    
+    if (ws && ws.readyState === WebSocket.OPEN) {
+      ws.send(JSON.stringify({ evento: "zona_liberada", zona: zonaExtract }));
+    }
+    
+    if (zMatch) {
+      zMatch.pct = 0;
+      zMatch.status = 'lista';
+      saveZones();
+      renderZones();
+      addLog(`🟢 Zona ${zonaExtract} liberada — lista para nuevo pedido`, 'success');
+    }
+    
+    // 8. Mostrar confirmación: badge verde ✓ Zona liberada durante 3 segundos
+    const successBadge = document.getElementById('packing-success-badge');
+    if (successBadge) {
+      successBadge.textContent = `✓ Zona ${zonaExtract} liberada`;
+      successBadge.style.opacity = '1';
+      successBadge.style.background = '#34C759';
+      setTimeout(() => {
+        successBadge.style.opacity = '0';
+        setTimeout(() => successBadge.textContent = '', 300);
+      }, 3000);
+    }
+
+  } catch (err) {
+    console.error('Error in confirmLiberarZona:', err);
+    addLog(`Error al liberar zona: ${err.message}`, 'error');
+  }
+
+  closeModal('modal-liberar-zona');
+  btn.disabled = false;
+  btn.textContent = ogText;
+  
+  await fetchPedidos();
+}
+
+function askCancelLiveProcess() {
+  openModal('modal-cancel-live');
+}
+
+async function confirmCancelLiveProcess() {
+  const activeOrder = allOrders.find(o => o.status === 'en_proceso');
+  closeModal('modal-cancel-live');
+  if (!activeOrder) return;
+  
+  try {
+    await fetch(`${API_URL}/api/pedidos/${activeOrder.id}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ status: 'cancelado', conteo_actual: 0 })
+    });
+  } catch(e) { console.error('Error updating order:', e); }
+  
+  await fetchPedidos();
+}
+</script>
+
+<!-- ── ACCESS SCREEN WITH ANIMATION ── -->
+<div id="access-screen">
+  <canvas id="bg-canvas"></canvas>
+  <div id="cubes-container"></div>
+  <div class="center-content">
+    <div id="acc-hss">HSS</div>
+    <div id="acc-sub">HERMES STICKER SYSTEM</div>
+    <div id="acc-form">
+      <input id="acc-input" type="password" placeholder="Contraseña" autocomplete="off" />
+      <button id="acc-btn" onclick="checkAccess()">Entrar</button>
+    </div>
+  </div>
+</div>
+
+<style>
+  #access-screen {
+    position: fixed;
+    inset: 0;
+    width: 100vw;
+    height: 100vh;
+    background: #0a0a0f;
+    z-index: 9999;
+    overflow: hidden;
+    font-family: -apple-system, "SF Pro Display", sans-serif;
+  }
+  #bg-canvas {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    z-index: 1;
+    opacity: 0;
+    transition: opacity 1000ms ease;
+  }
+  #cubes-container {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    z-index: 2;
+    perspective: 800px;
+    opacity: 0;
+    transition: opacity 1000ms ease;
+    pointer-events: none;
+  }
+  #access-screen .center-content {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    z-index: 10;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    width: 100%;
+  }
+  #acc-hss {
+    font-size: 96px;
+    font-weight: 800;
+    color: #FFFFFF;
+    letter-spacing: -0.03em;
+    text-shadow: 0 0 40px rgba(255,255,255,0.3);
+    line-height: 1;
+    opacity: 0;
+    transition: opacity 800ms ease;
+  }
+  #acc-sub {
+    font-size: 13px;
+    font-weight: 400;
+    letter-spacing: 0.3em;
+    color: rgba(255,255,255,0.5);
+    margin-top: 16px;
+    margin-bottom: 48px;
+    opacity: 0;
+    transition: opacity 600ms ease;
+  }
+  #acc-form {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 16px;
+    opacity: 0;
+    transition: opacity 400ms ease;
+  }
+  #acc-input {
+    background: rgba(255,255,255,0.08);
+    border: 1px solid rgba(255,255,255,0.15);
+    border-radius: 980px;
+    padding: 14px 24px;
+    color: #FFFFFF;
+    width: 280px;
+    text-align: center;
+    font-size: 15px;
+    font-family: inherit;
+    outline: none;
+    transition: border 300ms;
+  }
+  #acc-input::placeholder { color: rgba(255,255,255,0.4); }
+  #acc-input:focus { border-color: rgba(255,255,255,0.4); outline: none; }
+  #acc-btn {
+    background: rgba(255,255,255,0.1);
+    border: 1px solid rgba(255,255,255,0.2);
+    color: #FFFFFF;
+    width: 280px;
+    padding: 14px;
+    border-radius: 980px;
+    font-size: 15px;
+    font-weight: 500;
+    font-family: inherit;
+    cursor: pointer;
+    transition: background 200ms;
+  }
+  #acc-btn:hover { background: rgba(255,255,255,0.2); }
+
+  @keyframes acc-shake {
+    0%,100% { transform: translateX(0); }
+    20%     { transform: translateX(-8px); }
+    40%     { transform: translateX(8px); }
+    60%     { transform: translateX(-6px); }
+    80%     { transform: translateX(6px); }
+  }
+  #acc-input.shake {
+    animation: acc-shake 500ms cubic-bezier(0.25, 0.46, 0.45, 0.94);
+  }
+
+  /* 3D CUBES */
+  .cube-wrapper {
+    position: absolute;
+    left: 0; top: 0;
+    width: 120px;
+    height: 120px;
+    will-change: transform;
+    pointer-events: auto;
+  }
+  .cube-scaler {
+    width: 100%;
+    height: 100%;
+    transition: transform 300ms ease, filter 300ms ease;
+  }
+  .cube-wrapper:hover .cube-scaler {
+    transform: scale(1.05);
+    filter: drop-shadow(0 0 15px rgba(255,255,255,1));
+  }
+  .cube {
+    width: 100%;
+    height: 100%;
+    position: relative;
+    transform-style: preserve-3d;
+    will-change: transform;
+  }
+  .cube-face {
+    position: absolute;
+    width: 120px;
+    height: 120px;
+    background-color: rgba(255,255,255,0.05);
+    border: 1px solid rgba(255,255,255,0.1);
+    background-size: cover;
+    background-position: center;
+    backface-visibility: hidden;
+  }
+  .cube-face-front  { transform: translateZ(60px); }
+  .cube-face-back   { transform: rotateY(180deg) translateZ(60px); }
+  .cube-face-right  { transform: rotateY(90deg) translateZ(60px); }
+  .cube-face-left   { transform: rotateY(-90deg) translateZ(60px); }
+  .cube-face-top    { transform: rotateX(90deg) translateZ(60px); }
+  .cube-face-bottom { transform: rotateX(-90deg) translateZ(60px); }
+</style>
+
+<script>
+  const ACCESS_PASSWORD = 'hermes2025';
+  let accAnimationId;
+  let accCubesData = [];
+  let isAccessGranted = false;
+
+  const accCanvas = document.getElementById('bg-canvas');
+  let accCtx;
+  let accParticles = [];
+
+  (function initAccess() {
+    if (sessionStorage.getItem('hss_auth') === '1') {
+      document.getElementById('access-screen').style.display = 'none';
+      const main = document.getElementById('main-content');
+      if(main) main.style.display = 'block';
+      return;
+    }
+    
+    // Staggered entrance animations
+    setTimeout(() => {
+      document.getElementById('bg-canvas').style.opacity = '1';
+      document.getElementById('cubes-container').style.opacity = '1';
+    }, 0);
+    setTimeout(() => { document.getElementById('acc-hss').style.opacity = '1'; }, 500);
+    setTimeout(() => { document.getElementById('acc-sub').style.opacity = '1'; }, 900);
+    setTimeout(() => { document.getElementById('acc-form').style.opacity = '1'; }, 1200);
+
+    // Enter key support
+    document.getElementById('acc-input').addEventListener('keydown', function(e) {
+      if (e.key === 'Enter') checkAccess();
+    });
+
+    initCanvas();
+    initCubes();
+
+    document.addEventListener("visibilitychange", () => {
+      if (document.hidden) {
+        cancelAnimationFrame(accAnimationId);
+      } else {
+        if (!isAccessGranted && sessionStorage.getItem('hss_auth') !== '1') {
+          accAnimationId = requestAnimationFrame(renderLoop);
+        }
+      }
+    });
+  })();
+
+  function checkAccess() {
+    const input = document.getElementById('acc-input');
+    if (input.value === ACCESS_PASSWORD) {
+      sessionStorage.setItem('hss_auth', '1');
+      isAccessGranted = true;
+      const screen = document.getElementById('access-screen');
+      screen.style.transition = 'opacity 800ms ease';
+      screen.style.opacity = '0';
+      setTimeout(() => {
+        cancelAnimationFrame(accAnimationId);
+        screen.style.display = 'none';
+        const main = document.getElementById('main-content');
+        if (main) {
+          main.style.display = 'block';
+          main.style.opacity = '0';
+          main.style.transition = 'opacity 500ms ease';
+          requestAnimationFrame(() => { main.style.opacity = '1'; });
+        }
+      }, 800);
+    } else {
+      input.classList.remove('shake');
+      void input.offsetWidth;
+      input.classList.add('shake');
+      input.style.borderColor = 'rgba(255,59,48,0.6)';
+      setTimeout(() => {
+        input.style.borderColor = 'rgba(255,255,255,0.15)';
+        input.classList.remove('shake');
+      }, 1000);
+    }
+  }
+
+  function initCanvas() {
+    accCtx = accCanvas.getContext('2d');
+    resizeCanvas();
+    window.addEventListener('resize', resizeCanvas);
+    
+    for(let i=0; i<80; i++) {
+      accParticles.push({
+        x: Math.random() * accCanvas.width,
+        y: Math.random() * accCanvas.height,
+        vx: (Math.random() - 0.5) * 0.5,
+        vy: (Math.random() - 0.5) * 0.5
+      });
+    }
+    accAnimationId = requestAnimationFrame(renderLoop);
+  }
+
+  function resizeCanvas() {
+    accCanvas.width = window.innerWidth;
+    accCanvas.height = window.innerHeight;
+  }
+
+  function renderLoop() {
+    if (isAccessGranted) return;
+    
+    // Draw canvas
+    accCtx.clearRect(0, 0, accCanvas.width, accCanvas.height);
+    for(let i=0; i<accParticles.length; i++) {
+      let p = accParticles[i];
+      p.x += p.vx;
+      p.y += p.vy;
+      
+      if(p.x < 0 || p.x > accCanvas.width) p.vx *= -1;
+      if(p.y < 0 || p.y > accCanvas.height) p.vy *= -1;
+      
+      accCtx.beginPath();
+      accCtx.arc(p.x, p.y, 1, 0, Math.PI*2);
+      accCtx.fillStyle = 'rgba(255,255,255,0.6)';
+      accCtx.fill();
+      
+      for(let j=i+1; j<accParticles.length; j++) {
+        let p2 = accParticles[j];
+        let dx = p.x - p2.x;
+        let dy = p.y - p2.y;
+        let dist = Math.sqrt(dx*dx + dy*dy);
+        
+        if(dist < 120) {
+          accCtx.beginPath();
+          accCtx.moveTo(p.x, p.y);
+          accCtx.lineTo(p2.x, p2.y);
+          accCtx.strokeStyle = `rgba(255,255,255,${0.1 * (1 - dist/120)})`;
+          accCtx.stroke();
+        }
+      }
+    }
+
+    // Animate cubes
+    accCubesData.forEach(c => {
+      c.phaseX += c.speedX;
+      c.phaseY += c.speedY;
+      const x = c.startX + Math.sin(c.phaseX) * 100 - 60;
+      const y = c.startY + Math.cos(c.phaseY) * 100 - 60;
+      
+      c.rotX += c.rotSpeedX;
+      c.rotY += c.rotSpeedY;
+      
+      c.wrapper.style.transform = `translate3d(${x}px, ${y}px, ${c.zPos}px)`;
+      c.cube.style.transform = `rotateX(${c.rotX}deg) rotateY(${c.rotY}deg) rotateZ(0deg)`;
+    });
+
+    accAnimationId = requestAnimationFrame(renderLoop);
+  }
+
+  async function initCubes() {
+    const container = document.getElementById('cubes-container');
+    let images = [];
+    try {
+      const API_URL = window.location.origin;
+      const res = await fetch(`${API_URL}/api/colecciones`);
+      if(res.ok) {
+        const data = await res.json();
+        images = data.map(col => col.imagen).filter(img => img);
+      }
+    } catch(e) { console.error('Error fetching collections for cubes:', e); }
+
+    for(let i=0; i<8; i++) {
+      const wrapper = document.createElement('div');
+      wrapper.className = 'cube-wrapper';
+      
+      const depth = Math.random();
+      const zPos = -300 + depth * 600; 
+      wrapper.style.opacity = 0.4 + (depth * 0.5);
+      
+      const scaler = document.createElement('div');
+      scaler.className = 'cube-scaler';
+      
+      const cube = document.createElement('div');
+      cube.className = 'cube';
+      
+      const faces = ['front', 'back', 'right', 'left', 'top', 'bottom'];
+      faces.forEach((face, index) => {
+        const el = document.createElement('div');
+        el.className = `cube-face cube-face-${face}`;
+        if(images.length > 0) {
+          const img = images[(i + index) % images.length];
+          el.style.backgroundImage = `url(${img})`;
+        }
+        cube.appendChild(el);
+      });
+      
+      scaler.appendChild(cube);
+      wrapper.appendChild(scaler);
+      container.appendChild(wrapper);
+      
+      accCubesData.push({
+        wrapper,
+        cube,
+        startX: Math.random() * window.innerWidth,
+        startY: Math.random() * window.innerHeight,
+        phaseX: Math.random() * Math.PI * 2,
+        phaseY: Math.random() * Math.PI * 2,
+        speedX: 0.005 + Math.random() * 0.005,
+        speedY: 0.005 + Math.random() * 0.005,
+        rotX: Math.random() * 360,
+        rotY: Math.random() * 360,
+        rotSpeedX: (Math.random() - 0.5) * 1.5,
+        rotSpeedY: (Math.random() - 0.5) * 1.5,
+        zPos: zPos
+      });
+    }
+  }
+</script>
+
+<!-- ── BACKGROUND CANVAS ── -->
+<canvas id="bg-canvas" style="position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; z-index: 0; background: #0a0a0f; pointer-events: none;"></canvas>
+
+<!-- ── PS2 FLOATING CUBES (main bg) ── -->
+<div id="main-cubes-container" style="position:fixed;top:0;left:0;width:100%;height:100%;z-index:0;perspective:800px;pointer-events:none;overflow:hidden;"></div>
+
+<style>
+  .main-cube-wrapper {
+    position: absolute;
+    width: 80px;
+    height: 80px;
+    will-change: transform;
+  }
+  .main-cube {
+    width: 100%;
+    height: 100%;
+    position: relative;
+    transform-style: preserve-3d;
+    will-change: transform;
+  }
+  .main-cube-face {
+    position: absolute;
+    width: 80px;
+    height: 80px;
+    background: rgba(255,255,255,0.03);
+    border: 1px solid rgba(255,255,255,0.08);
+    backface-visibility: hidden;
+  }
+  .main-cube-face.mc-front  { transform: translateZ(40px); }
+  .main-cube-face.mc-back   { transform: rotateY(180deg) translateZ(40px); }
+  .main-cube-face.mc-right  { transform: rotateY(90deg) translateZ(40px); }
+  .main-cube-face.mc-left   { transform: rotateY(-90deg) translateZ(40px); }
+  .main-cube-face.mc-top    { transform: rotateX(90deg) translateZ(40px); }
+  .main-cube-face.mc-bottom { transform: rotateX(-90deg) translateZ(40px); }
+</style>
+
+<script>
+  (function() {
+    /* ── Particle canvas ── */
+    const canvas = document.getElementById('bg-canvas');
+    if (!canvas) return;
+    const ctx = canvas.getContext('2d');
+    let width, height;
+    let particles = [];
+    const NUM_PARTICLES = 80;
+    let animationId;
+    let isVisible = true;
+
+    function resize() {
+      width = canvas.width = window.innerWidth;
+      height = canvas.height = window.innerHeight;
+    }
+
+    class Particle {
+      constructor() {
+        this.x = Math.random() * width;
+        this.y = Math.random() * height;
+        this.vx = (Math.random() - 0.5) * 0.5;
+        this.vy = (Math.random() - 0.5) * 0.5;
+        this.radius = 1;
+      }
+      update() {
+        this.x += this.vx;
+        this.y += this.vy;
+        if (this.x < 0) this.x = width;
+        if (this.x > width) this.x = 0;
+        if (this.y < 0) this.y = height;
+        if (this.y > height) this.y = 0;
+      }
+      draw() {
+        ctx.beginPath();
+        ctx.arc(this.x, this.y, this.radius, 0, Math.PI * 2);
+        ctx.fillStyle = 'rgba(255,255,255,0.6)';
+        ctx.fill();
+      }
+    }
+
+    function init() {
+      resize();
+      particles = [];
+      for (let i = 0; i < NUM_PARTICLES; i++) {
+        particles.push(new Particle());
+      }
+      window.addEventListener('resize', resize);
+      document.addEventListener('visibilitychange', () => {
+        isVisible = (document.visibilityState === 'visible');
+        if (isVisible) loop();
+        else cancelAnimationFrame(animationId);
+      });
+      loop();
+    }
+
+    function loop() {
+      if (!isVisible) return;
+      ctx.clearRect(0, 0, width, height);
+
+      for (let i = 0; i < particles.length; i++) {
+        particles[i].update();
+        particles[i].draw();
+        for (let j = i + 1; j < particles.length; j++) {
+          const dx = particles[i].x - particles[j].x;
+          const dy = particles[i].y - particles[j].y;
+          const dist = Math.sqrt(dx*dx + dy*dy);
+          if (dist < 120) {
+            ctx.beginPath();
+            ctx.moveTo(particles[i].x, particles[i].y);
+            ctx.lineTo(particles[j].x, particles[j].y);
+            ctx.strokeStyle = `rgba(255,255,255,${0.1 * (1 - dist/120)})`;
+            ctx.lineWidth = 1;
+            ctx.stroke();
+          }
+        }
+      }
+      animationId = requestAnimationFrame(loop);
+    }
+
+    init();
+
+    /* ── PS2-style floating 3D cubes ── */
+    (function initMainCubes() {
+      const container = document.getElementById('main-cubes-container');
+      if (!container) return;
+
+      const NUM_CUBES = 8;
+      const faceClasses = ['mc-front', 'mc-back', 'mc-right', 'mc-left', 'mc-top', 'mc-bottom'];
+      const cubesData = [];
+
+      for (let i = 0; i < NUM_CUBES; i++) {
+        const depth = Math.random();
+        const opacity = 0.3 + depth * 0.5;
+
+        const wrapper = document.createElement('div');
+        wrapper.className = 'main-cube-wrapper';
+        wrapper.style.opacity = opacity;
+
+        const cube = document.createElement('div');
+        cube.className = 'main-cube';
+
+        faceClasses.forEach(fc => {
+          const face = document.createElement('div');
+          face.className = 'main-cube-face ' + fc;
+          cube.appendChild(face);
+        });
+
+        wrapper.appendChild(cube);
+        container.appendChild(wrapper);
+
+        cubesData.push({
+          wrapper,
+          cube,
+          x: Math.random() * window.innerWidth,
+          y: Math.random() * window.innerHeight,
+          vx: (Math.random() - 0.5) * 0.3,
+          vy: (Math.random() - 0.5) * 0.3,
+          phase: Math.random() * Math.PI * 2,
+          phaseSpeed: 0.004 + Math.random() * 0.006,
+          rotX: Math.random() * 360,
+          rotY: Math.random() * 360,
+          rotSpeedX: (Math.random() - 0.5) * 0.5,
+          rotSpeedY: (Math.random() - 0.5) * 0.5
+        });
+      }
+
+      function animateCubes() {
+        const W = window.innerWidth;
+        const H = window.innerHeight;
+        cubesData.forEach(c => {
+          c.x += c.vx;
+          c.y += c.vy;
+          if (c.x < -100) c.x = W + 100;
+          if (c.x > W + 100) c.x = -100;
+          if (c.y < -100) c.y = H + 100;
+          if (c.y > H + 100) c.y = -100;
+
+          c.phase += c.phaseSpeed;
+          const floatY = Math.sin(c.phase) * 18;
+
+          c.rotX += c.rotSpeedX;
+          c.rotY += c.rotSpeedY;
+
+          c.wrapper.style.transform = `translate(${c.x}px, ${c.y + floatY}px)`;
+          c.cube.style.transform = `rotateX(${c.rotX}deg) rotateY(${c.rotY}deg)`;
+        });
+        requestAnimationFrame(animateCubes);
+      }
+
+      animateCubes();
+    })();
+  })();
+</script>
+</body>
+</html>
