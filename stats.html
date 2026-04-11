@@ -1,0 +1,2395 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Estadísticas · HSS</title>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/jstat@1.9.6/dist/jstat.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/simple-statistics@7.8.3/dist/simple-statistics.min.js"></script>
+  <style>
+    /* ── System Font Stack ── */
+    :root {
+      --font: -apple-system, "SF Pro Text", "SF Pro Display", BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
+      --bg: #0a0a0f;
+    }
+
+    /* ── RESET & GLOBAL ── */
+    *, *::before, *::after {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    html, body {
+      background-color: #0a0a0f !important;
+      color: white !important;
+    }
+
+    body {
+      font-family: var(--font);
+      background: var(--bg);
+      color: white;
+      min-height: 100vh;
+      overflow-x: hidden;
+    }
+
+    /* ── SCROLLBAR ── */
+    ::-webkit-scrollbar { width: 6px; }
+    ::-webkit-scrollbar-track { background: transparent; }
+    ::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.2); border-radius: 3px; }
+
+    /* ── TARJETAS Y TEXTOS GLOBALES ── */
+    .card {
+      background: rgba(255,255,255,0.06);
+      border: 1px solid rgba(255,255,255,0.1);
+      border-radius: 20px;
+      padding: 24px;
+      transition: border-color 300ms ease;
+    }
+    .card:hover {
+      border-color: rgba(255,255,255,0.2);
+    }
+    .label { color: rgba(255,255,255,0.5); font-size: 13px; }
+    .value { color: white; font-weight: 600; }
+
+    /* ── NAVBAR ── */
+    .navbar {
+      position: fixed;
+      top: 0; left: 0; right: 0;
+      height: 52px;
+      background: rgba(10,10,15,0.8);
+      border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+      backdrop-filter: blur(20px);
+      -webkit-backdrop-filter: blur(20px);
+      z-index: 1000;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 24px;
+    }
+
+    .nav-brand {
+      font-size: 13px;
+      font-weight: 600;
+      letter-spacing: 0.1em;
+      color: #FFFFFF;
+      text-transform: uppercase;
+    }
+
+    .nav-tabs {
+      display: flex;
+      background: rgba(255, 255, 255, 0.05);
+      border-radius: 980px;
+      padding: 3px;
+    }
+
+    .nav-tab {
+      padding: 7px 18px;
+      border: none;
+      border-radius: 980px;
+      font-family: var(--font);
+      font-size: 13px;
+      font-weight: 400;
+      cursor: pointer;
+      text-decoration: none;
+      background: transparent;
+      color: #FFFFFF;
+      transition: background 200ms, color 200ms;
+      display: block;
+    }
+
+    .nav-tab.active {
+      background: white !important;
+      color: #1D1D1F !important;
+      font-weight: 500;
+    }
+
+    .nav-tab:not(.active):hover {
+      background: rgba(255,255,255,0.08);
+    }
+
+    .nav-right {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    
+    .status-dot {
+      width: 8px;
+      height: 8px;
+      background: white;
+      border-radius: 50%;
+      animation: pulse-white 2s infinite;
+    }
+    
+    .nav-right span {
+      font-size: 12px;
+      color: #FFFFFF;
+    }
+
+    @keyframes pulse-white {
+      0% { box-shadow: 0 0 0 0 rgba(255,255,255,0.4); }
+      70% { box-shadow: 0 0 0 6px rgba(255,255,255,0); }
+      100% { box-shadow: 0 0 0 0 rgba(255,255,255,0); }
+    }
+
+    /* ── RESPONSIVE NAVBAR ── */
+    @media (max-width: 1024px) {
+      .navbar { padding: 0 16px; }
+      .nav-tab { padding: 6px 14px; font-size: 12px; }
+    }
+
+    @media (max-width: 768px) {
+      .nav-brand {
+        font-size: 0 !important;
+        letter-spacing: 0 !important;
+        white-space: nowrap;
+      }
+      .nav-brand::after {
+        content: 'HSS';
+        font-size: 13px !important;
+        font-weight: 600 !important;
+        letter-spacing: 0.1em;
+        color: #FFFFFF;
+        text-transform: uppercase;
+      }
+      .nav-right { display: none; }
+      .nav-tab { padding: 5px 12px; font-size: 12px; }
+    }
+
+    /* ── MAIN WRAPPER ── */
+    .wrapper {
+      margin-top: 52px;
+      padding: 24px;
+      position: relative;
+      z-index: 1;
+      display: flex;
+      flex-direction: column;
+      gap: 32px;
+      max-width: 1200px;
+      margin-left: auto;
+      margin-right: auto;
+    }
+
+    /* ── ESTRUCTURA DE CONTENIDO RESPONSIVE ── */
+    @media (min-width: 1024px) { .wrapper { padding: 32px; } }
+    @media (max-width: 1024px) { .wrapper { padding: 20px; } }
+    @media (max-width: 768px) { .wrapper { padding: 16px; } }
+    @media (max-width: 390px) { .wrapper { padding: 12px; } }
+
+    /* ── HEADER DE PÁGINA ── */
+    .page-header {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      padding-bottom: 24px;
+      border-bottom: 1px solid rgba(255,255,255,0.08);
+    }
+    .page-title {
+      font-size: 28px;
+      font-weight: 600;
+      color: white;
+      margin: 0;
+    }
+    .page-subtitle {
+      font-size: 14px;
+      color: rgba(255,255,255,0.5);
+      margin: 0;
+    }
+
+    /* ── ACCESS SCREEN ── */
+    #access-screen {
+      position: fixed;
+      inset: 0;
+      width: 100vw;
+      height: 100vh;
+      background: #0a0a0f;
+      z-index: 9999;
+      overflow: hidden;
+      font-family: var(--font);
+    }
+    #acc-bg-canvas {
+      position: absolute;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+      z-index: 1;
+      opacity: 0;
+      transition: opacity 1000ms ease;
+    }
+    #cubes-container {
+      position: absolute;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+      z-index: 2;
+      perspective: 800px;
+      opacity: 0;
+      transition: opacity 1000ms ease;
+      pointer-events: none;
+    }
+    #access-screen .center-content {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      z-index: 10;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      width: 100%;
+    }
+    #acc-hss {
+      font-size: 96px;
+      font-weight: 800;
+      color: #FFFFFF;
+      letter-spacing: -0.03em;
+      text-shadow: 0 0 40px rgba(255,255,255,0.3);
+      line-height: 1;
+      opacity: 0;
+      transition: opacity 800ms ease;
+    }
+    #acc-sub {
+      font-size: 13px;
+      font-weight: 400;
+      letter-spacing: 0.3em;
+      color: rgba(255,255,255,0.5);
+      margin-top: 16px;
+      margin-bottom: 48px;
+      opacity: 0;
+      transition: opacity 600ms ease;
+    }
+    #acc-form {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 16px;
+      opacity: 0;
+      transition: opacity 400ms ease;
+    }
+    #acc-input {
+      background: rgba(255,255,255,0.08);
+      border: 1px solid rgba(255,255,255,0.15);
+      border-radius: 980px;
+      padding: 14px 24px;
+      color: #FFFFFF;
+      width: 280px;
+      text-align: center;
+      font-size: 15px;
+      font-family: inherit;
+      outline: none;
+      transition: border 300ms;
+    }
+    #acc-input::placeholder { color: rgba(255,255,255,0.4); }
+    #acc-input:focus { border-color: rgba(255,255,255,0.4); outline: none; }
+    #acc-btn {
+      background: rgba(255,255,255,0.1);
+      border: 1px solid rgba(255,255,255,0.2);
+      color: #FFFFFF;
+      width: 280px;
+      padding: 14px;
+      border-radius: 980px;
+      font-size: 15px;
+      font-weight: 500;
+      font-family: inherit;
+      cursor: pointer;
+      transition: background 200ms;
+    }
+    #acc-btn:hover { background: rgba(255,255,255,0.2); }
+
+    @keyframes acc-shake {
+      0%,100% { transform: translateX(0); }
+      20%     { transform: translateX(-8px); }
+      40%     { transform: translateX(8px); }
+      60%     { transform: translateX(-6px); }
+      80%     { transform: translateX(6px); }
+    }
+    #acc-input.shake {
+      animation: acc-shake 500ms cubic-bezier(0.25, 0.46, 0.45, 0.94);
+    }
+
+    /* 3D CUBES */
+    .cube-wrapper {
+      position: absolute;
+      left: 0; top: 0;
+      width: 120px;
+      height: 120px;
+      will-change: transform;
+      pointer-events: auto;
+    }
+    .cube-scaler {
+      width: 100%;
+      height: 100%;
+      transition: transform 300ms ease, filter 300ms ease;
+    }
+    .cube-wrapper:hover .cube-scaler {
+      transform: scale(1.05);
+      filter: drop-shadow(0 0 15px rgba(255,255,255,1));
+    }
+    .cube {
+      width: 100%;
+      height: 100%;
+      position: relative;
+      transform-style: preserve-3d;
+      will-change: transform;
+    }
+    .cube-face {
+      position: absolute;
+      width: 120px;
+      height: 120px;
+      background-color: rgba(255,255,255,0.03);
+      border: 1px solid rgba(255,255,255,0.08);
+      background-size: cover;
+      background-position: center;
+      backface-visibility: hidden;
+    }
+    .cube-face-front  { transform: translateZ(60px); }
+    .cube-face-back   { transform: rotateY(180deg) translateZ(60px); }
+    .cube-face-right  { transform: rotateY(90deg) translateZ(60px); }
+    .cube-face-left   { transform: rotateY(-90deg) translateZ(60px); }
+    .cube-face-top    { transform: rotateX(90deg) translateZ(60px); }
+    .cube-face-bottom { transform: rotateX(-90deg) translateZ(60px); }
+
+    @media (max-width: 768px) {
+      #acc-hss { font-size: 72px; }
+      #acc-input, #acc-btn { width: 90%; max-width: 320px; }
+      .cube-wrapper, .cube-face { width: 60px; height: 60px; }
+      .cube-face-front  { transform: translateZ(30px); }
+      .cube-face-back   { transform: rotateY(180deg) translateZ(30px); }
+      .cube-face-right  { transform: rotateY(90deg) translateZ(30px); }
+      .cube-face-left   { transform: rotateY(-90deg) translateZ(30px); }
+      .cube-face-top    { transform: rotateX(90deg) translateZ(30px); }
+      .cube-face-bottom { transform: rotateX(-90deg) translateZ(30px); }
+    }
+    @media (max-width: 390px) {
+      #acc-hss { font-size: 56px; }
+      #acc-sub { font-size: 11px; letter-spacing: 0.2em; }
+    }
+
+    /* ── FONDO ANIMADO PRINCIPAL (PS2 CUBES) ── */
+    #bg-content-canvas {
+      position: fixed;
+      top: 0; left: 0;
+      width: 100vw; height: 100vh;
+      z-index: 0;
+      background: #0a0a0f;
+      pointer-events: none;
+    }
+    #main-cubes-container {
+      position: fixed;
+      top: 0; left: 0;
+      width: 100%; height: 100%;
+      z-index: 0;
+      perspective: 800px;
+      pointer-events: none;
+      overflow: hidden;
+    }
+    .main-cube-wrapper {
+      position: absolute;
+      width: 80px; height: 80px;
+      will-change: transform;
+    }
+    .main-cube {
+      width: 100%; height: 100%;
+      position: relative;
+      transform-style: preserve-3d;
+      will-change: transform;
+    }
+    .main-cube-face {
+      position: absolute;
+      width: 80px; height: 80px;
+      background: rgba(255,255,255,0.03);
+      border: 1px solid rgba(255,255,255,0.08);
+      backface-visibility: hidden;
+    }
+    .main-cube-face.mc-front  { transform: translateZ(40px); }
+    .main-cube-face.mc-back   { transform: rotateY(180deg) translateZ(40px); }
+    .main-cube-face.mc-right  { transform: rotateY(90deg) translateZ(40px); }
+    .main-cube-face.mc-left   { transform: rotateY(-90deg) translateZ(40px); }
+    .main-cube-face.mc-top    { transform: rotateX(90deg) translateZ(40px); }
+    .main-cube-face.mc-bottom { transform: rotateX(-90deg) translateZ(40px); }
+
+    /* ── PERIOD SELECTOR Y DASHBOARD ── */
+    .period-selector-container {
+      display: flex;
+      justify-content: center;
+      margin-bottom: 24px;
+    }
+    .period-selector {
+      display: flex;
+      background: rgba(255, 255, 255, 0.05);
+      border-radius: 980px;
+      padding: 3px;
+    }
+    .period-btn {
+      padding: 7px 18px;
+      border: none;
+      border-radius: 980px;
+      font-family: var(--font);
+      font-size: 13px;
+      font-weight: 400;
+      cursor: pointer;
+      background: transparent;
+      color: white;
+      transition: background 200ms, color 200ms;
+    }
+    .period-btn.active {
+      background: white;
+      color: #1D1D1F;
+      font-weight: 500;
+    }
+    .period-btn:not(.active) {
+      color: white;
+    }
+    .period-btn:not(.active):hover {
+      background: rgba(255,255,255,0.08);
+    }
+
+    /* ── STATS GRID ── */
+    .stats-grid {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 16px;
+    }
+    @media (max-width: 1024px) {
+      .stats-grid { grid-template-columns: repeat(2, 1fr); }
+    }
+    @media (max-width: 768px) {
+      .stats-grid { grid-template-columns: 1fr; }
+    }
+
+    .stat-card {
+      background: rgba(255,255,255,0.06);
+      border: 1px solid rgba(255,255,255,0.1);
+      border-radius: 20px;
+      padding: 24px;
+      transition: border-color 300ms ease;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+    .stat-card:hover {
+      border-color: rgba(255,255,255,0.2);
+    }
+    .stat-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+    .stat-icon {
+      font-size: 24px;
+      line-height: 1;
+    }
+    .stat-badge {
+      background: rgba(255, 159, 10, 0.1);
+      color: #FF9F0A;
+      padding: 4px 8px;
+      border-radius: 980px;
+      font-size: 11px;
+      font-weight: 500;
+      line-height: 1;
+    }
+    .stat-number {
+      font-size: 48px;
+      font-weight: 700;
+      color: white;
+      line-height: 1;
+    }
+    .stat-label {
+      font-size: 13px;
+      color: rgba(255,255,255,0.5);
+    }
+    .stat-trend {
+      font-size: 12px;
+      color: #34C759;
+    }
+    .stat-subtext {
+      font-size: 12px;
+      color: rgba(255,255,255,0.3);
+    }
+
+    /* ── SHIMMER LOADING ── */
+    .stat-card.loading {
+      background: linear-gradient(90deg, 
+        rgba(255,255,255,0.05) 25%, 
+        rgba(255,255,255,0.1) 50%, 
+        rgba(255,255,255,0.05) 75%);
+      background-size: 200% 100%;
+      animation: shimmer 1.5s infinite;
+    }
+    .stat-card.loading * {
+      opacity: 0 !important;
+    }
+    @keyframes shimmer {
+      0% { background-position: 200% 0; }
+      100% { background-position: -200% 0; }
+    }
+
+    /* ── EMPTY STATE ── */
+    .empty-state {
+      text-align: center;
+      font-size: 13px;
+      color: rgba(255,255,255,0.4);
+      margin-top: 24px;
+    }
+
+    /* ── CHARTS GRID ── */
+    .charts-grid {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 20px;
+      margin-top: 24px;
+    }
+    @media (max-width: 1024px) {
+      .charts-grid { grid-template-columns: repeat(2, 1fr); }
+    }
+    @media (max-width: 768px) {
+      .charts-grid { grid-template-columns: 1fr; }
+    }
+
+    .chart-card {
+      background: rgba(255,255,255,0.06);
+      border: 1px solid rgba(255,255,255,0.1);
+      border-radius: 20px;
+      padding: 24px;
+      transition: border-color 300ms ease;
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+    }
+    .chart-card:hover {
+      border-color: rgba(255,255,255,0.2);
+    }
+    .chart-header {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+    .chart-title {
+      font-size: 17px;
+      font-weight: 600;
+      color: white;
+      margin: 0;
+    }
+    .chart-subtitle {
+      font-size: 13px;
+      color: rgba(255,255,255,0.5);
+      margin: 0;
+    }
+    .chart-insight {
+      font-size: 13px;
+      color: rgba(255,255,255,0.6);
+      margin-top: 8px;
+    }
+    /* ── MODALES Y BOTONES ── */
+    .modal-overlay {
+      position: fixed; inset: 0;
+      background: rgba(255, 255, 255, 0.35);
+      backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px);
+      z-index: 2000; display: flex; align-items: center; justify-content: center;
+      opacity: 0; visibility: hidden; transition: opacity 250ms ease, visibility 250ms;
+    }
+    .modal-overlay.visible { opacity: 1; visibility: visible; }
+    .modal-card {
+      background: rgba(20,20,30,0.95); border: 1px solid rgba(255,255,255,0.1);
+      border-radius: 20px; padding: 28px; max-width: 380px; width: 90%;
+      display: flex; flex-direction: column; gap: 16px; transform: scale(0.95);
+      transition: transform 250ms ease; box-shadow: 0 20px 60px rgba(255, 255, 255, 0.18);
+    }
+    .modal-overlay.visible .modal-card { transform: scale(1); }
+    .btn {
+      border: none; border-radius: 980px; font-family: inherit; font-size: 13px; font-weight: 500;
+      cursor: pointer; padding: 9px 18px; transition: all 200ms ease; display: inline-flex;
+      align-items: center; justify-content: center; gap: 6px; white-space: nowrap;
+    }
+    .btn-secondary { background: rgba(255, 255, 255, 0.06); color: white; }
+    .btn-secondary:hover { background: rgba(255, 255, 255, 0.1); }
+    .btn-danger { background: rgba(255,59,48,0.2); color: #FF3B30; }
+    .btn-danger:hover { background: rgba(255,59,48,0.3); }
+    .btn-danger:disabled { opacity: 0.5; cursor: not-allowed; }
+  </style>
+</head>
+<body>
+
+  <!-- ── PANTALLA DE ACCESO ── -->
+  <div id="access-screen">
+    <canvas id="acc-bg-canvas"></canvas>
+    <div id="cubes-container"></div>
+    <div class="center-content">
+      <div id="acc-hss">HSS</div>
+      <div id="acc-sub">HERMES STICKER SYSTEM</div>
+      <div id="acc-form">
+        <input id="acc-input" type="password" placeholder="Contraseña" autocomplete="off" />
+        <button id="acc-btn" onclick="checkAccess()">Entrar</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── CONTENIDO PRINCIPAL (Oculto al inicio) ── -->
+  <div id="main-content" style="display: none;">
+    
+    <!-- FONDO ANIMADO DEL CONTENIDO -->
+    <canvas id="bg-content-canvas"></canvas>
+    <div id="main-cubes-container"></div>
+
+    <!-- NAVBAR -->
+    <nav class="navbar">
+      <span class="nav-brand">HERMES STICKER SYSTEM</span>
+      <div class="nav-tabs">
+        <a href="index.html" class="nav-tab">Catálogo</a>
+        <a href="setpoint.html" class="nav-tab">Panel de Control</a>
+        <a href="stats.html" class="nav-tab active">Estadísticas</a>
+      </div>
+      <div class="nav-right">
+        <div class="status-dot"></div>
+        <span>HSS</span>
+      </div>
+    </nav>
+    
+    <!-- MAIN WRAPPER -->
+    <div class="wrapper">
+      <!-- BANNER DE ERROR GLOBAL -->
+      <div id="global-error" style="display: none; background: rgba(255,159,10,0.1); border: 1px solid rgba(255,159,10,0.3); color: #FF9F0A; padding: 12px 16px; border-radius: 12px; font-size: 13px; font-weight: 500; text-align: center; margin-bottom: 24px;">
+        ⚠️ Sin conexión con el servidor — mostrando datos en caché
+      </div>
+
+      <!-- HEADER -->
+      <div class="page-header">
+        <h1 class="page-title">Estadísticas</h1>
+        <p class="page-subtitle">Análisis de producción y rendimiento</p>
+      </div>
+
+      <!-- SELECTOR DE PERÍODO -->
+      <div class="period-selector-container">
+        <div class="period-selector">
+          <button class="period-btn" data-period="semana" onclick="cambiarPeriodo('semana')">Esta semana</button>
+          <button class="period-btn active" data-period="mes" onclick="cambiarPeriodo('mes')">Este mes</button>
+          <button class="period-btn" data-period="todo" onclick="cambiarPeriodo('todo')">Todo</button>
+        </div>
+      </div>
+
+      <!-- GRID DE TARJETAS RESUMEN -->
+      <div class="stats-grid" id="stats-grid">
+        <!-- Tarjeta 1 - Total stickers -->
+        <div class="stat-card loading" id="card-stickers">
+          <div class="stat-header">
+            <span class="stat-icon">📦</span>
+          </div>
+          <div>
+            <div class="stat-number" id="val-stickers">0</div>
+            <div class="stat-label">stickers producidos</div>
+          </div>
+          <div class="stat-trend" id="trend-stickers">+12% vs período anterior</div>
+        </div>
+
+        <!-- Tarjeta 2 - Pedidos completados -->
+        <div class="stat-card loading" id="card-completados">
+          <div class="stat-header">
+            <span class="stat-icon" style="color: #34C759;">✓</span>
+          </div>
+          <div>
+            <div class="stat-number" id="val-completados">0</div>
+            <div class="stat-label">pedidos completados</div>
+          </div>
+          <div class="stat-trend" id="trend-completados">comparado con período anterior</div>
+        </div>
+
+        <!-- Tarjeta 3 - Pedidos pendientes -->
+        <div class="stat-card loading" id="card-pendientes">
+          <div class="stat-header">
+            <span class="stat-icon" style="color: #FF9F0A;">⏳</span>
+            <span class="stat-badge" id="badge-pendientes" style="display: none;">En proceso</span>
+          </div>
+          <div>
+            <div class="stat-number" id="val-pendientes">0</div>
+            <div class="stat-label">pedidos pendientes</div>
+          </div>
+          <div class="stat-trend"></div>
+        </div>
+
+        <!-- Tarjeta 4 - Tiempo promedio -->
+        <div class="stat-card loading" id="card-tiempo">
+          <div class="stat-header">
+            <span class="stat-icon" style="color: #0A84FF;">⏱</span>
+          </div>
+          <div>
+            <div class="stat-number" id="val-tiempo">0</div>
+            <div class="stat-label">hrs promedio</div>
+          </div>
+          <div class="stat-subtext">por pedido</div>
+        </div>
+      </div>
+
+      <!-- SECCIÓN CHARTS -->
+      <div class="charts-grid" id="charts-grid" style="display: none;">
+        <!-- Card Pareto -->
+        <div class="chart-card">
+          <div class="chart-header">
+            <h2 class="chart-title">Análisis de Pareto — Colecciones</h2>
+            <p class="chart-subtitle">¿Qué colecciones representan el 80% de tu producción?</p>
+          </div>
+          <div style="height: 300px; position: relative;">
+            <canvas id="paretoChart"></canvas>
+          </div>
+          <div class="chart-insight" id="pareto-insight"></div>
+        </div>
+
+        <!-- Card Tendencia -->
+        <div class="chart-card">
+          <div class="chart-header">
+            <h2 class="chart-title">Tendencia de producción</h2>
+            <p class="chart-subtitle">Pedidos y stickers producidos por mes</p>
+          </div>
+          <div style="height: 250px; position: relative;">
+            <canvas id="trendChart"></canvas>
+          </div>
+          <div class="chart-insight" id="trend-insight"></div>
+        </div>
+      </div>
+
+      <!-- ESTADO VACÍO -->
+      <div class="empty-state" id="empty-state" style="display: none;">
+        Sin datos aún — crea tu primer pedido para ver estadísticas
+      </div>
+
+      <!-- SECCIÓN CHARTS ESTADÍSTICOS (FULL WIDTH) -->
+      <div id="stats-advanced-grid" style="display: none; margin-top: 24px; flex-direction: column; gap: 24px;">
+        
+        <!-- ESTADO VACÍO ESTADÍSTICO -->
+        <div id="stats-empty-state" style="display: none; text-align: center; font-size: 13px; color: rgba(255,255,255,0.4); padding: 40px 0; background: rgba(255,255,255,0.02); border-radius: 20px;">
+          <div style="font-size: 24px; margin-bottom: 8px;">📊</div>
+          Se necesitan al menos 3 pedidos completados para mostrar análisis estadístico
+        </div>
+
+        <div id="stats-content-wrapper" style="display: none; flex-direction: column; gap: 24px;">
+          <!-- Card Gauss -->
+          <div class="chart-card">
+            <div class="chart-header">
+              <h2 class="chart-title">Distribución de tiempos de producción</h2>
+              <p class="chart-subtitle">¿Qué tan consistente es tu proceso?</p>
+            </div>
+            <div style="height: 280px; position: relative;">
+              <canvas id="gaussChart"></canvas>
+            </div>
+            
+            <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin-top: 16px;">
+              <div style="background: rgba(255,255,255,0.04); border-radius: 12px; padding: 12px; text-align: center;">
+                <div style="font-size: 12px; color: rgba(255,255,255,0.5); margin-bottom: 4px;">μ (Media)</div>
+                <div style="font-size: 16px; font-weight: 600; color: white;" id="val-mu">-- hrs</div>
+              </div>
+              <div style="background: rgba(255,255,255,0.04); border-radius: 12px; padding: 12px; text-align: center;">
+                <div style="font-size: 12px; color: rgba(255,255,255,0.5); margin-bottom: 4px;">σ (Desv. Est.)</div>
+                <div style="font-size: 16px; font-weight: 600; color: white;" id="val-sigma">-- hrs</div>
+              </div>
+              <div style="background: rgba(255,255,255,0.04); border-radius: 12px; padding: 12px; text-align: center;">
+                <div style="font-size: 12px; color: rgba(255,255,255,0.5); margin-bottom: 4px;">CV (Coef. Var.)</div>
+                <div style="font-size: 16px; font-weight: 600; color: white;" id="val-cv">--%</div>
+              </div>
+            </div>
+            <div class="chart-insight" id="gauss-insight"></div>
+          </div>
+
+          <!-- Card Dispersión -->
+          <div class="chart-card">
+            <div class="chart-header">
+              <h2 class="chart-title">Correlación cantidad vs tiempo</h2>
+              <p class="chart-subtitle">¿Cuánto tiempo tarda según la cantidad de stickers?</p>
+            </div>
+            <div style="height: 280px; position: relative;">
+              <canvas id="scatterChart"></canvas>
+            </div>
+            
+            <div style="margin-top: 16px; display: flex; flex-direction: column; gap: 12px;">
+              <div style="display: flex; gap: 16px; flex-wrap: wrap; font-size: 13px;">
+                <div style="background: rgba(255,255,255,0.04); border-radius: 12px; padding: 12px; flex: 1;">
+                  <span style="color: rgba(255,255,255,0.5);">R² Ajuste:</span>
+                  <span id="val-r2" style="font-weight: 600; margin-left: 4px;">--</span>
+                </div>
+                <div style="background: rgba(255,255,255,0.04); border-radius: 12px; padding: 12px; flex: 1;">
+                  <span style="color: rgba(255,255,255,0.5);">Ecuación:</span>
+                  <span id="val-ecuacion" style="font-weight: 600; margin-left: 4px;">--</span>
+                </div>
+              </div>
+              
+              <!-- Predictor interactivo -->
+              <div style="background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.1); border-radius: 12px; padding: 16px; display: flex; align-items: center; justify-content: space-between; gap: 16px; flex-wrap: wrap;">
+                <div style="display: flex; align-items: center; gap: 12px;">
+                  <span style="font-size: 13px; color: rgba(255,255,255,0.7);">Ingresa cantidad de stickers:</span>
+                  <input type="number" id="predict-input" placeholder="Ej. 50" style="background: rgba(0,0,0,0.3); border: 1px solid rgba(255,255,255,0.15); border-radius: 980px; padding: 8px 16px; color: white; width: 100px; font-family: inherit; font-size: 13px; outline: none; text-align: center; transition: border-color 0.2s;">
+                </div>
+                <div style="font-size: 14px;">
+                  <span style="color: rgba(255,255,255,0.5);">Tiempo estimado:</span>
+                  <span id="predict-result" style="font-weight: 600; color: #34C759; margin-left: 8px;">-- horas</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- SECCIÓN GRÁFICA DE CONTROL X-R -->
+          <div class="chart-card">
+            <div class="chart-header">
+              <h2 class="chart-title">Gráfica de Control X-R</h2>
+              <p class="chart-subtitle">¿Está tu proceso bajo control estadístico?</p>
+            </div>
+            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 16px; margin-top: 16px;">
+              <div style="height: 250px; position: relative;">
+                <canvas id="xBarChart"></canvas>
+              </div>
+              <div style="height: 250px; position: relative;">
+                <canvas id="rChart"></canvas>
+              </div>
+            </div>
+            <div id="control-alert" style="margin-top: 16px; border-radius: 12px; padding: 12px; text-align: center; font-size: 13px; font-weight: 600; display: none;"></div>
+          </div>
+
+          <!-- SECCIÓN Cp Y Cpk -->
+          <div class="chart-card">
+            <div class="chart-header">
+              <h2 class="chart-title">Capacidad del Proceso</h2>
+              <p class="chart-subtitle">¿Qué tan capaz es tu sistema de producción?</p>
+            </div>
+            
+            <div style="background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.1); border-radius: 12px; padding: 16px; display: flex; align-items: center; justify-content: center; gap: 16px; flex-wrap: wrap; margin-bottom: 24px;">
+              <div style="display: flex; align-items: center; gap: 8px;">
+                <span style="font-size: 13px; color: rgba(255,255,255,0.7);">LSE (Máx):</span>
+                <input type="number" id="cpk-lse" value="4" step="0.5" style="background: rgba(0,0,0,0.3); border: 1px solid rgba(255,255,255,0.15); border-radius: 980px; padding: 8px 16px; color: white; width: 80px; font-family: inherit; font-size: 13px; outline: none; text-align: center; transition: border-color 0.2s;">
+              </div>
+              <div style="display: flex; align-items: center; gap: 8px;">
+                <span style="font-size: 13px; color: rgba(255,255,255,0.7);">LIE (Mín):</span>
+                <input type="number" id="cpk-lie" value="0.5" step="0.5" style="background: rgba(0,0,0,0.3); border: 1px solid rgba(255,255,255,0.15); border-radius: 980px; padding: 8px 16px; color: white; width: 80px; font-family: inherit; font-size: 13px; outline: none; text-align: center; transition: border-color 0.2s;">
+              </div>
+              <button id="btn-calcular-cpk" style="background: white; color: black; border: none; padding: 8px 24px; border-radius: 980px; font-size: 13px; font-weight: 600; cursor: pointer; transition: opacity 0.2s;">Calcular</button>
+            </div>
+
+            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 16px;">
+              <!-- Tarjeta Cp -->
+              <div style="background: rgba(255,255,255,0.04); border-radius: 16px; padding: 20px; display: flex; flex-direction: column; align-items: center;">
+                <div style="width: 150px; height: 75px; position: relative; margin-bottom: 16px;">
+                  <canvas id="gaugeCp"></canvas>
+                </div>
+                <div style="font-size: 24px; font-weight: 700; color: white; margin-bottom: 4px;" id="val-cp">Cp = --</div>
+                <div style="font-size: 12px; color: rgba(255,255,255,0.5); margin-bottom: 8px;">Capacidad potencial</div>
+                <div style="font-size: 13px; font-weight: 500;" id="status-cp">--</div>
+              </div>
+              
+              <!-- Tarjeta Cpk -->
+              <div style="background: rgba(255,255,255,0.04); border-radius: 16px; padding: 20px; display: flex; flex-direction: column; align-items: center;">
+                <div style="width: 150px; height: 75px; position: relative; margin-bottom: 16px;">
+                  <canvas id="gaugeCpk"></canvas>
+                </div>
+                <div style="font-size: 24px; font-weight: 700; color: white; margin-bottom: 4px;" id="val-cpk">Cpk = --</div>
+                <div style="font-size: 12px; color: rgba(255,255,255,0.5); margin-bottom: 8px;">Capacidad real</div>
+                <div style="font-size: 13px; font-weight: 500;" id="status-cpk">--</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- SECCIÓN REPORTES Y EXPORTACIÓN -->
+      <div class="chart-card">
+        <div class="chart-header">
+          <h2 class="chart-title">Reportes y exportación</h2>
+          <p class="chart-subtitle">Descarga tus datos mensuales en formato CSV</p>
+        </div>
+        <div id="reportes-grid" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 16px; margin-top: 16px;">
+          <!-- Tarjetas de meses se inyectarán aquí -->
+        </div>
+      </div>
+
+      <!-- RESUMEN DE ALMACENAMIENTO -->
+      <div class="chart-card" style="margin-top: 8px;">
+        <div style="display: flex; align-items: flex-start; gap: 16px;">
+          <div style="font-size: 24px;">💾</div>
+          <div style="flex: 1;">
+            <h2 class="chart-title" style="font-size: 15px;">Almacenamiento Supabase</h2>
+            <div style="display: flex; justify-content: space-between; margin-top: 8px; font-size: 13px; color: rgba(255,255,255,0.7);">
+              <span id="storage-pedidos">Total pedidos guardados: --</span>
+              <span id="storage-mb">Espacio estimado: ~0.0 MB de 500 MB</span>
+            </div>
+            <div style="display: flex; align-items: center; gap: 12px; margin-top: 8px;">
+              <div style="flex: 1; height: 4px; background: rgba(255,255,255,0.08); border-radius: 980px; overflow: hidden;">
+                <div id="storage-bar" style="height: 100%; background: #0A84FF; border-radius: 980px; width: 0%; transition: width 500ms ease;"></div>
+              </div>
+              <span id="storage-pct" style="font-size: 12px; font-weight: 600; color: rgba(255,255,255,0.7);">0.00%</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Modal Eliminación -->
+      <div class="modal-overlay" id="modal-eliminar-mes">
+        <div class="modal-card">
+          <h3 style="margin:0; font-size: 18px; color: #FF3B30;">Eliminar datos</h3>
+          <p style="margin:0; font-size: 14px; color: rgba(255,255,255,0.7); line-height: 1.5;">
+            Estás a punto de eliminar permanentemente todos los pedidos y producción de <strong id="mes-eliminar-nombre" style="color:white;">--</strong>.<br><br>
+            Esta acción <strong>no se puede deshacer</strong> y afectará todas las estadísticas históricas.
+          </p>
+          <div style="display: flex; justify-content: flex-end; gap: 12px; margin-top: 8px;">
+            <button class="btn btn-secondary" onclick="cerrarModalEliminar()">Cancelar</button>
+            <button class="btn btn-danger" id="btn-confirmar-eliminar" onclick="confirmarEliminarMes()" style="min-width: 130px;" disabled>
+              Eliminar (3s)
+            </button>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <script>
+    // ── CONEXIÓN API ──
+    const API_URL = window.location.hostname === 'localhost'
+      ? 'http://localhost:3000'
+      : 'https://sticker-system-txi5.onrender.com';
+
+    // ── LÓGICA DE ACCESO Y ANIMACIONES ──
+    const ACCESS_PASSWORD = 'hermes2025';
+    let accAnimationId;
+    let accCubesData = [];
+    let isAccessGranted = false;
+
+    const accCanvas = document.getElementById('acc-bg-canvas');
+    let accCtx;
+    let accParticles = [];
+
+    (function initAccess() {
+      if (sessionStorage.getItem('hss_auth') === '1') {
+        document.getElementById('access-screen').style.display = 'none';
+        const main = document.getElementById('main-content');
+        if(main) main.style.display = 'block';
+        initMainBackgrounds();
+        return;
+      }
+      
+      // Animations de entrada
+      setTimeout(() => {
+        document.getElementById('acc-bg-canvas').style.opacity = '1';
+        document.getElementById('cubes-container').style.opacity = '1';
+      }, 0);
+      setTimeout(() => { document.getElementById('acc-hss').style.opacity = '1'; }, 500);
+      setTimeout(() => { document.getElementById('acc-sub').style.opacity = '1'; }, 900);
+      setTimeout(() => { document.getElementById('acc-form').style.opacity = '1'; }, 1200);
+
+      document.getElementById('acc-input').addEventListener('keydown', function(e) {
+        if (e.key === 'Enter') checkAccess();
+      });
+
+      initCanvas();
+      initCubes();
+
+      document.addEventListener("visibilitychange", () => {
+        if (document.hidden) {
+          cancelAnimationFrame(accAnimationId);
+        } else {
+          if (!isAccessGranted && sessionStorage.getItem('hss_auth') !== '1') {
+            accAnimationId = requestAnimationFrame(renderLoop);
+          }
+        }
+      });
+    })();
+
+    function checkAccess() {
+      const input = document.getElementById('acc-input');
+      if (input.value === ACCESS_PASSWORD) {
+        sessionStorage.setItem('hss_auth', '1');
+        isAccessGranted = true;
+        const screen = document.getElementById('access-screen');
+        screen.style.transition = 'opacity 800ms ease';
+        screen.style.opacity = '0';
+        setTimeout(() => {
+          cancelAnimationFrame(accAnimationId);
+          screen.style.display = 'none';
+          const main = document.getElementById('main-content');
+          if (main) {
+            main.style.display = 'block';
+            main.style.opacity = '0';
+            main.style.transition = 'opacity 500ms ease';
+            requestAnimationFrame(() => { main.style.opacity = '1'; });
+            initMainBackgrounds();
+          }
+        }, 800);
+      } else {
+        input.classList.remove('shake');
+        void input.offsetWidth;
+        input.classList.add('shake');
+        input.style.borderColor = 'rgba(255,59,48,0.6)';
+        setTimeout(() => {
+          input.style.borderColor = 'rgba(255,255,255,0.15)';
+          input.classList.remove('shake');
+        }, 1000);
+      }
+    }
+
+    function initCanvas() {
+      accCtx = accCanvas.getContext('2d');
+      resizeCanvas();
+      window.addEventListener('resize', resizeCanvas);
+      
+      for(let i=0; i<80; i++) {
+        accParticles.push({
+          x: Math.random() * accCanvas.width,
+          y: Math.random() * accCanvas.height,
+          vx: (Math.random() - 0.5) * 0.5,
+          vy: (Math.random() - 0.5) * 0.5
+        });
+      }
+      accAnimationId = requestAnimationFrame(renderLoop);
+    }
+
+    function resizeCanvas() {
+      accCanvas.width = window.innerWidth;
+      accCanvas.height = window.innerHeight;
+    }
+
+    function renderLoop() {
+      if (isAccessGranted) return;
+      accCtx.clearRect(0, 0, accCanvas.width, accCanvas.height);
+      for(let i=0; i<accParticles.length; i++) {
+        let p = accParticles[i];
+        p.x += p.vx; p.y += p.vy;
+        if(p.x < 0 || p.x > accCanvas.width) p.vx *= -1;
+        if(p.y < 0 || p.y > accCanvas.height) p.vy *= -1;
+        
+        accCtx.beginPath();
+        accCtx.arc(p.x, p.y, 1, 0, Math.PI*2);
+        accCtx.fillStyle = 'rgba(255,255,255,0.6)';
+        accCtx.fill();
+        
+        for(let j=i+1; j<accParticles.length; j++) {
+          let p2 = accParticles[j];
+          let dx = p.x - p2.x; let dy = p.y - p2.y;
+          let dist = Math.sqrt(dx*dx + dy*dy);
+          if(dist < 120) {
+            accCtx.beginPath();
+            accCtx.moveTo(p.x, p.y);
+            accCtx.lineTo(p2.x, p2.y);
+            accCtx.strokeStyle = `rgba(255,255,255,${0.1 * (1 - dist/120)})`;
+            accCtx.stroke();
+          }
+        }
+      }
+      accCubesData.forEach(c => {
+        c.phaseX += c.speedX; c.phaseY += c.speedY;
+        const x = c.startX + Math.sin(c.phaseX) * 100 - 60;
+        const y = c.startY + Math.cos(c.phaseY) * 100 - 60;
+        c.rotX += c.rotSpeedX; c.rotY += c.rotSpeedY;
+        c.wrapper.style.transform = `translate3d(${x}px, ${y}px, ${c.zPos}px)`;
+        c.cube.style.transform = `rotateX(${c.rotX}deg) rotateY(${c.rotY}deg) rotateZ(0deg)`;
+      });
+      accAnimationId = requestAnimationFrame(renderLoop);
+    }
+
+    async function initCubes() {
+      const container = document.getElementById('cubes-container');
+      let images = [];
+      try {
+        const res = await fetch(`${API_URL}/api/colecciones`);
+        if(res.ok) {
+          const data = await res.json();
+          images = data.map(col => col.imagen).filter(img => img);
+        }
+      } catch(e) { console.warn('No se pudieron cargar imágenes de colecciones para cubos'); }
+
+      for(let i=0; i<8; i++) {
+        const wrapper = document.createElement('div');
+        wrapper.className = 'cube-wrapper';
+        const depth = Math.random();
+        const zPos = -300 + depth * 600; 
+        wrapper.style.opacity = 0.4 + (depth * 0.5);
+        
+        const scaler = document.createElement('div');
+        scaler.className = 'cube-scaler';
+        
+        const cube = document.createElement('div');
+        cube.className = 'cube';
+        
+        const faces = ['front', 'back', 'right', 'left', 'top', 'bottom'];
+        faces.forEach((face, index) => {
+          const el = document.createElement('div');
+          el.className = `cube-face cube-face-${face}`;
+          if(images.length > 0) {
+            const img = images[(i + index) % images.length];
+            el.style.backgroundImage = `url(${img})`;
+          }
+          cube.appendChild(el);
+        });
+        
+        scaler.appendChild(cube);
+        wrapper.appendChild(scaler);
+        container.appendChild(wrapper);
+        
+        accCubesData.push({
+          wrapper, cube,
+          startX: Math.random() * window.innerWidth,
+          startY: Math.random() * window.innerHeight,
+          phaseX: Math.random() * Math.PI * 2,
+          phaseY: Math.random() * Math.PI * 2,
+          speedX: 0.005 + Math.random() * 0.005,
+          speedY: 0.005 + Math.random() * 0.005,
+          rotX: Math.random() * 360,
+          rotY: Math.random() * 360,
+          rotSpeedX: (Math.random() - 0.5) * 1.5,
+          rotSpeedY: (Math.random() - 0.5) * 1.5,
+          zPos: zPos
+        });
+      }
+    }
+
+    // ── LÓGICA DE FONDO ANIMADO PRINCIPAL (CUBOS Y PARTÍCULAS) ──
+    function initMainBackgrounds() {
+      // Particles
+      const bgCanvas = document.getElementById('bg-content-canvas');
+      if (!bgCanvas) return;
+      const ctx = bgCanvas.getContext('2d');
+      let width, height;
+      let particles = [];
+      const NUM_PARTICLES = window.innerWidth <= 768 ? 40 : 80;
+      let mainAnimationId;
+      let isVisible = true;
+
+      function resize() {
+        width = bgCanvas.width = window.innerWidth;
+        height = bgCanvas.height = window.innerHeight;
+      }
+
+      class Particle {
+        constructor() {
+          this.x = Math.random() * width;
+          this.y = Math.random() * height;
+          this.vx = (Math.random() - 0.5) * 0.5;
+          this.vy = (Math.random() - 0.5) * 0.5;
+          this.radius = 1;
+        }
+        update() {
+          this.x += this.vx; this.y += this.vy;
+          if (this.x < 0) this.x = width;
+          if (this.x > width) this.x = 0;
+          if (this.y < 0) this.y = height;
+          if (this.y > height) this.y = 0;
+        }
+        draw() {
+          ctx.beginPath();
+          ctx.arc(this.x, this.y, this.radius, 0, Math.PI * 2);
+          ctx.fillStyle = 'rgba(255,255,255,0.6)';
+          ctx.fill();
+        }
+      }
+
+      function initParticles() {
+        resize();
+        particles = [];
+        for (let i = 0; i < NUM_PARTICLES; i++) particles.push(new Particle());
+        window.addEventListener('resize', resize);
+        document.addEventListener('visibilitychange', () => {
+          isVisible = (document.visibilityState === 'visible');
+          if (isVisible) loopParticles();
+          else cancelAnimationFrame(mainAnimationId);
+        });
+        loopParticles();
+      }
+
+      function loopParticles() {
+        if (!isVisible) return;
+        ctx.clearRect(0, 0, width, height);
+
+        for (let i = 0; i < particles.length; i++) {
+          particles[i].update();
+          particles[i].draw();
+          for (let j = i + 1; j < particles.length; j++) {
+            const dx = particles[i].x - particles[j].x;
+            const dy = particles[i].y - particles[j].y;
+            const dist = Math.sqrt(dx*dx + dy*dy);
+            if (dist < 120) {
+              ctx.beginPath();
+              ctx.moveTo(particles[i].x, particles[i].y);
+              ctx.lineTo(particles[j].x, particles[j].y);
+              ctx.strokeStyle = `rgba(255,255,255,${0.1 * (1 - dist/120)})`;
+              ctx.lineWidth = 1;
+              ctx.stroke();
+            }
+          }
+        }
+        mainAnimationId = requestAnimationFrame(loopParticles);
+      }
+      initParticles();
+
+      // Cubes
+      const container = document.getElementById('main-cubes-container');
+      if (!container) return;
+
+      const NUM_CUBES = window.innerWidth <= 768 ? 4 : 8;
+      const faceClasses = ['mc-front', 'mc-back', 'mc-right', 'mc-left', 'mc-top', 'mc-bottom'];
+      const cubesData = [];
+
+      for (let i = 0; i < NUM_CUBES; i++) {
+        const depth = Math.random();
+        const opacity = 0.3 + depth * 0.5;
+
+        const wrapper = document.createElement('div');
+        wrapper.className = 'main-cube-wrapper';
+        wrapper.style.opacity = opacity;
+
+        const cube = document.createElement('div');
+        cube.className = 'main-cube';
+
+        faceClasses.forEach(fc => {
+          const face = document.createElement('div');
+          face.className = 'main-cube-face ' + fc;
+          cube.appendChild(face);
+        });
+
+        wrapper.appendChild(cube);
+        container.appendChild(wrapper);
+
+        cubesData.push({
+          wrapper, cube,
+          x: Math.random() * window.innerWidth,
+          y: Math.random() * window.innerHeight,
+          vx: (Math.random() - 0.5) * 0.3,
+          vy: (Math.random() - 0.5) * 0.3,
+          phase: Math.random() * Math.PI * 2,
+          phaseSpeed: 0.004 + Math.random() * 0.006,
+          rotX: Math.random() * 360,
+          rotY: Math.random() * 360,
+          rotSpeedX: (Math.random() - 0.5) * 0.5,
+          rotSpeedY: (Math.random() - 0.5) * 0.5
+        });
+      }
+
+      function animateCubes() {
+        const W = window.innerWidth;
+        const H = window.innerHeight;
+        cubesData.forEach(c => {
+          c.x += c.vx; c.y += c.vy;
+          if (c.x < -100) c.x = W + 100;
+          if (c.x > W + 100) c.x = -100;
+          if (c.y < -100) c.y = H + 100;
+          if (c.y > H + 100) c.y = -100;
+
+          c.phase += c.phaseSpeed;
+          const floatY = Math.sin(c.phase) * 18;
+          c.rotX += c.rotSpeedX; c.rotY += c.rotSpeedY;
+
+          c.wrapper.style.transform = `translate(${c.x}px, ${c.y + floatY}px)`;
+          c.cube.style.transform = `rotateX(${c.rotX}deg) rotateY(${c.rotY}deg)`;
+        });
+        requestAnimationFrame(animateCubes);
+      }
+      animateCubes();
+    }
+
+    // ── FUNCIONES ESTADÍSTICAS AUXILIARES ──
+    function media(arr) {
+      if (arr.length === 0) return 0;
+      return arr.reduce((a, b) => a + b, 0) / arr.length;
+    }
+
+    function desviacion(arr) {
+      if (arr.length === 0) return 0;
+      const m = media(arr);
+      return Math.sqrt(arr.reduce((a, b) => a + Math.pow(b - m, 2), 0) / arr.length);
+    }
+
+    function normalDist(x, mu, sigma) {
+      if (sigma === 0) return 0;
+      return (1 / (sigma * Math.sqrt(2 * Math.PI))) * 
+             Math.exp(-0.5 * Math.pow((x - mu) / sigma, 2));
+    }
+
+    function regresionLineal(x, y) {
+      const n = x.length;
+      const sumX = x.reduce((a, b) => a + b, 0);
+      const sumY = y.reduce((a, b) => a + b, 0);
+      const sumXY = x.reduce((a, xi, i) => a + xi * y[i], 0);
+      const sumX2 = x.reduce((a, xi) => a + xi * xi, 0);
+      
+      const denominator = (n * sumX2 - sumX * sumX);
+      if (denominator === 0) return { m: 0, b: media(y) };
+      
+      const m = (n * sumXY - sumX * sumY) / denominator;
+      const b = (sumY - m * sumX) / n;
+      return { m, b };
+    }
+
+    function r2(x, y, m, b) {
+      if (y.length === 0) return 0;
+      const yMedia = media(y);
+      const ssTot = y.reduce((a, yi) => a + Math.pow(yi - yMedia, 2), 0);
+      if (ssTot === 0) return 0;
+      const ssRes = x.reduce((a, xi, i) => a + Math.pow(y[i] - (m * xi + b), 2), 0);
+      return Math.max(0, 1 - ssRes / ssTot);
+    }
+
+    // ── LÓGICA DE CARGA DE DATOS ──
+    let periodoActual = 'mes';
+
+    function animarNumero(elemento, valorFinal) {
+      if (valorFinal === undefined || valorFinal === null) valorFinal = 0;
+      if (valorFinal === 0) {
+        elemento.textContent = '0';
+        return;
+      }
+      let inicio = 0;
+      const duracion = 1000;
+      const incremento = valorFinal / (duracion / 16);
+      const timer = setInterval(() => {
+        inicio += incremento;
+        if (inicio >= valorFinal) {
+          elemento.textContent = Math.round(valorFinal).toString();
+          clearInterval(timer);
+        } else {
+          elemento.textContent = Math.round(inicio).toString();
+        }
+      }, 16);
+    }
+
+    function mostrarLoading() {
+      document.querySelectorAll('.stat-card').forEach(card => card.classList.add('loading'));
+      document.getElementById('empty-state').style.display = 'none';
+      
+      document.getElementById('val-stickers').textContent = '0';
+      document.getElementById('val-completados').textContent = '0';
+      document.getElementById('val-pendientes').textContent = '0';
+      document.getElementById('val-tiempo').textContent = '0';
+      document.getElementById('badge-pendientes').style.display = 'none';
+      document.getElementById('global-error').style.display = 'none';
+    }
+
+    async function cargarEstadisticas(periodoRaw) {
+      if(periodoRaw) periodoActual = periodoRaw;
+      mostrarLoading();
+      
+      try {
+        const res = await fetch(`${API_URL}/api/stats?periodo=${periodoActual}`);
+        if (!res.ok) throw new Error('Error en respuesta del servidor');
+        const data = await res.json();
+        
+        // Sumar manualmente total_stickers
+        if (data.pedidos && Array.isArray(data.pedidos)) {
+          data.total_stickers = data.pedidos.reduce((acc, p) => acc + (Number(p.total_stickers) || 0), 0);
+        }
+
+        actualizarTarjetas(data);
+        document.getElementById('global-error').style.display = 'none';
+      } catch(err) {
+        console.error('Error cargando estadísticas:', err);
+        document.getElementById('val-stickers').textContent = '0';
+        document.getElementById('val-completados').textContent = '0';
+        document.getElementById('val-pendientes').textContent = '0';
+        document.getElementById('val-tiempo').textContent = '0';
+        
+        document.querySelectorAll('.stat-card').forEach(card => card.classList.remove('loading'));
+        document.getElementById('empty-state').style.display = 'block';
+        document.getElementById('charts-grid').style.display = 'none';
+        if (document.getElementById('stats-advanced-grid')) {
+          document.getElementById('stats-advanced-grid').style.display = 'none';
+        }
+        document.getElementById('global-error').style.display = 'block';
+      }
+    }
+
+    function actualizarTarjetas(data) {
+      document.querySelectorAll('.stat-card').forEach(card => card.classList.remove('loading'));
+      
+      if (!data || data.error || (!data.total_stickers && !data.pedidos_completados && !data.pedidos_pendientes && !data.tiempo_promedio_horas)) {
+        document.getElementById('empty-state').style.display = 'block';
+        document.getElementById('charts-grid').style.display = 'none';
+        
+        const advancedGrid = document.getElementById('stats-advanced-grid');
+        if (advancedGrid) advancedGrid.style.display = 'none';
+
+        // Limpiar variables globales que guardan el estado de las gráficas
+        if (typeof paretoChartInstance !== 'undefined' && paretoChartInstance) { paretoChartInstance.destroy(); paretoChartInstance = null; }
+        if (typeof trendChartInstance !== 'undefined' && trendChartInstance) { trendChartInstance.destroy(); trendChartInstance = null; }
+        if (typeof gaussChartInstance !== 'undefined' && gaussChartInstance) { gaussChartInstance.destroy(); gaussChartInstance = null; }
+        if (typeof scatterChartInstance !== 'undefined' && scatterChartInstance) { scatterChartInstance.destroy(); scatterChartInstance = null; }
+        if (typeof xBarChartInstance !== 'undefined' && xBarChartInstance) { xBarChartInstance.destroy(); xBarChartInstance = null; }
+        if (typeof rChartInstance !== 'undefined' && rChartInstance) { rChartInstance.destroy(); rChartInstance = null; }
+
+        return; 
+      }
+
+      document.getElementById('empty-state').style.display = 'none';
+
+      animarNumero(document.getElementById('val-stickers'), data.total_stickers || 0);
+      animarNumero(document.getElementById('val-completados'), data.pedidos_completados || 0);
+      animarNumero(document.getElementById('val-pendientes'), data.pedidos_pendientes || 0);
+      animarNumero(document.getElementById('val-tiempo'), data.tiempo_promedio_horas || 0);
+
+      const badge = document.getElementById('badge-pendientes');
+      if (data.pedidos_pendientes && data.pedidos_pendientes > 0) {
+        badge.style.display = 'inline-block';
+      } else {
+        badge.style.display = 'none';
+      }
+
+      renderCharts(data);
+    }
+
+    let paretoChartInstance = null;
+    let trendChartInstance = null;
+    let gaussChartInstance = null;
+    let scatterChartInstance = null;
+    let xBarChartInstance = null;
+    let rChartInstance = null;
+    let currentRegresion = { m: 0, b: 0 };
+
+    function renderCharts(data) {
+      if (paretoChartInstance) paretoChartInstance.destroy();
+      if (trendChartInstance) trendChartInstance.destroy();
+      if (gaussChartInstance) gaussChartInstance.destroy();
+      if (scatterChartInstance) scatterChartInstance.destroy();
+
+      const chartsGrid = document.getElementById('charts-grid');
+      const advancedGrid = document.getElementById('stats-advanced-grid');
+      const statsEmpty = document.getElementById('stats-empty-state');
+      const statsContent = document.getElementById('stats-content-wrapper');
+      
+      const paretoData = data.pareto || data.colecciones || [];
+      const porMes = data.por_mes || (data.tendencia && data.tendencia.por_mes) || [];
+      const tiemposProduccion = data.tiempos_produccion || [];
+
+      if (paretoData.length === 0 && porMes.length === 0 && tiemposProduccion.length === 0) {
+        chartsGrid.style.display = 'none';
+        advancedGrid.style.display = 'none';
+        return;
+      }
+
+      chartsGrid.style.display = 'grid';
+
+      // 1. Gráfica de Pareto
+      if (paretoData.length > 0) {
+        paretoData.sort((a, b) => b.stickers - a.stickers);
+        const labels = paretoData.map(i => i.coleccion || i.nombre);
+        const cantidades = paretoData.map(i => i.stickers);
+        
+        let totalStickers = cantidades.reduce((a, b) => a + b, 0);
+        let acumulado = 0;
+        const porcentajesAcumulados = cantidades.map(c => {
+          acumulado += c;
+          return totalStickers > 0 ? (acumulado / totalStickers) * 100 : 0;
+        });
+
+        const ctxPareto = document.getElementById('paretoChart').getContext('2d');
+        
+        const referenceLinePlugin = {
+          id: 'referenceLine',
+          beforeDraw: chart => {
+            const ctx = chart.canvas.getContext('2d');
+            const yAxis = chart.scales.y2;
+            const xAxis = chart.scales.x;
+            if (!yAxis || !xAxis) return;
+            const y = yAxis.getPixelForValue(80);
+            ctx.save();
+            ctx.beginPath();
+            ctx.setLineDash([5, 5]);
+            ctx.moveTo(xAxis.left, y);
+            ctx.lineTo(xAxis.right, y);
+            ctx.strokeStyle = '#FF9F0A';
+            ctx.lineWidth = 1;
+            ctx.stroke();
+            ctx.restore();
+          }
+        };
+
+        paretoChartInstance = new Chart(ctxPareto, {
+          type: 'bar',
+          data: {
+            labels: labels,
+            datasets: [
+              {
+                type: 'bar',
+                label: 'Stickers producidos',
+                data: cantidades,
+                backgroundColor: [
+                  'rgba(10,132,255,0.7)',
+                  'rgba(52,199,89,0.7)',
+                  'rgba(255,159,10,0.7)',
+                  'rgba(255,59,48,0.7)',
+                  'rgba(191,90,242,0.7)',
+                  'rgba(255,107,53,0.7)'
+                ],
+                borderRadius: 8,
+                borderSkipped: false
+              },
+              {
+                type: 'line',
+                label: '% Acumulado',
+                data: porcentajesAcumulados,
+                borderColor: 'rgba(255,255,255,0.8)',
+                borderWidth: 2,
+                pointBackgroundColor: 'white',
+                pointRadius: 4,
+                yAxisID: 'y2',
+                tension: 0.3
+              }
+            ]
+          },
+          options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+              legend: { labels: { color: 'rgba(255,255,255,0.7)' } },
+              tooltip: {
+                backgroundColor: 'rgba(20,20,30,0.95)',
+                titleColor: 'white',
+                bodyColor: 'rgba(255,255,255,0.7)',
+                borderColor: 'rgba(255,255,255,0.1)',
+                borderWidth: 1,
+                borderRadius: 12
+              }
+            },
+            scales: {
+              x: { 
+                ticks: { color: 'rgba(255,255,255,0.5)' },
+                grid: { color: 'rgba(255,255,255,0.05)' }
+              },
+              y: { 
+                ticks: { color: 'rgba(255,255,255,0.5)' },
+                grid: { color: 'rgba(255,255,255,0.05)' }
+              },
+              y2: {
+                position: 'right',
+                min: 0, max: 100,
+                ticks: { 
+                  color: 'rgba(255,255,255,0.5)',
+                  callback: val => val + '%'
+                },
+                grid: { display: false }
+              }
+            }
+          },
+          plugins: [referenceLinePlugin]
+        });
+
+        let n80 = 0;
+        for (let i = 0; i < porcentajesAcumulados.length; i++) {
+          n80++;
+          if (porcentajesAcumulados[i] >= 80) break;
+        }
+        document.getElementById('pareto-insight').innerHTML = `💡 Las ${n80} coleccion${n80 > 1 ? 'es' : ''} más producida${n80 > 1 ? 's' : ''} representan el 80% de tu producción total`;
+      }
+
+      // 2. Gráfica de Tendencia (por_mes)
+      if (porMes.length > 0) {
+        const labelsMes = porMes.map(m => m.mes);
+        const dataPedidos = porMes.map(m => m.pedidos);
+        const dataStickers = porMes.map(m => m.stickers);
+
+        const ctxTrend = document.getElementById('trendChart').getContext('2d');
+        trendChartInstance = new Chart(ctxTrend, {
+          type: 'line',
+          data: {
+            labels: labelsMes,
+            datasets: [
+              {
+                label: 'Pedidos',
+                data: dataPedidos,
+                borderColor: '#0A84FF',
+                backgroundColor: 'rgba(10,132,255,0.08)',
+                borderWidth: 2,
+                pointBackgroundColor: '#0A84FF',
+                pointRadius: 5,
+                fill: true,
+                tension: 0.4
+              },
+              {
+                label: 'Stickers',
+                data: dataStickers,
+                borderColor: '#34C759',
+                backgroundColor: 'rgba(52,199,89,0.08)',
+                borderWidth: 2,
+                pointBackgroundColor: '#34C759',
+                pointRadius: 5,
+                fill: true,
+                tension: 0.4,
+                yAxisID: 'y2'
+              }
+            ]
+          },
+          options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            interaction: { mode: 'index', intersect: false },
+            plugins: {
+              legend: { labels: { color: 'rgba(255,255,255,0.7)' } },
+              tooltip: {
+                backgroundColor: 'rgba(20,20,30,0.95)',
+                titleColor: 'white',
+                bodyColor: 'rgba(255,255,255,0.7)',
+                borderColor: 'rgba(255,255,255,0.1)',
+                borderWidth: 1,
+                borderRadius: 12
+              }
+            },
+            scales: {
+              x: {
+                ticks: { color: 'rgba(255,255,255,0.5)' },
+                grid: { color: 'rgba(255,255,255,0.05)' }
+              },
+              y: {
+                ticks: { color: 'rgba(255,255,255,0.5)' },
+                grid: { color: 'rgba(255,255,255,0.05)' },
+                title: { display: true, text: 'Pedidos', color: 'rgba(255,255,255,0.5)' }
+              },
+              y2: {
+                position: 'right',
+                ticks: { color: 'rgba(255,255,255,0.5)' },
+                grid: { display: false },
+                title: { display: true, text: 'Stickers', color: 'rgba(255,255,255,0.5)' }
+              }
+            }
+          }
+        });
+
+        if (dataPedidos.length >= 2) {
+          const mesActual = dataPedidos[dataPedidos.length - 1];
+          const mesAnterior = dataPedidos[dataPedidos.length - 2];
+          if (mesAnterior > 0) {
+            const cambio = ((mesActual - mesAnterior) / mesAnterior * 100).toFixed(1);
+            const texto = cambio > 0 
+              ? `📈 Producción aumentó ${cambio}% vs el mes anterior`
+              : `📉 Producción bajó ${Math.abs(cambio)}% vs el mes anterior`;
+            document.getElementById('trend-insight').textContent = texto;
+          } else {
+            document.getElementById('trend-insight').textContent = `📈 Primer mes de producción con ${mesActual} pedidos`;
+          }
+        } else {
+          document.getElementById('trend-insight').textContent = '';
+        }
+      }
+
+      // 3. Gráficas Estadísticas (Gauss & Scatter)
+      advancedGrid.style.display = 'flex';
+      if (tiemposProduccion.length < 3) {
+        statsEmpty.style.display = 'block';
+        statsContent.style.display = 'none';
+      } else {
+        statsEmpty.style.display = 'none';
+        statsContent.style.display = 'flex';
+
+        // Procesar datos
+        const tiempos = tiemposProduccion.map(t => t.tiempo_horas).filter(t => t > 0);
+        const cantidades = tiemposProduccion.map(t => t.cantidad_stickers);
+
+        if (tiempos.length >= 3) {
+          // --- CAMPANA DE GAUSS ---
+          const mu = media(tiempos);
+          const sigma = desviacion(tiempos);
+
+          document.getElementById('val-mu').textContent = mu.toFixed(1) + ' hrs';
+          document.getElementById('val-sigma').textContent = sigma.toFixed(2) + ' hrs';
+          
+          const cv = mu > 0 ? (sigma / mu * 100) : 0;
+          document.getElementById('val-cv').textContent = cv.toFixed(1) + '%';
+
+          const insightTexto = cv < 15 
+            ? `✓ Proceso muy consistente — CV ${cv.toFixed(1)}%`
+            : cv < 30
+            ? `⚠️ Proceso moderadamente consistente — CV ${cv.toFixed(1)}%`
+            : `✗ Proceso inconsistente — CV ${cv.toFixed(1)}% — revisa tus tiempos`;
+          document.getElementById('gauss-insight').textContent = insightTexto;
+
+          const numBarras = Math.ceil(1 + 3.322 * Math.log10(tiempos.length));
+          const minT = Math.min(...tiempos);
+          const maxT = Math.max(...tiempos);
+          const ancho = maxT > minT ? (maxT - minT) / numBarras : 1;
+
+          const frecuencias = Array(numBarras).fill(0);
+          tiempos.forEach(t => {
+            const idx = Math.min(Math.floor((t - minT) / ancho), numBarras - 1);
+            if(idx >= 0) frecuencias[idx]++;
+          });
+
+          const dataHistograma = frecuencias.map((f, i) => ({
+            x: minT + (i + 0.5) * ancho,
+            y: f
+          }));
+
+          const ptosLinea = 100;
+          const xCurva = Array.from({length: ptosLinea}, (_, i) => minT + (maxT - minT) * i / (ptosLinea - 1));
+          const factorEscala = tiempos.length * ancho;
+          const yCurva = xCurva.map(x => normalDist(x, mu, sigma) * factorEscala);
+          
+          const dataLinea = xCurva.map((x, i) => ({
+            x: x,
+            y: yCurva[i]
+          }));
+
+          const ctxGauss = document.getElementById('gaussChart').getContext('2d');
+          gaussChartInstance = new Chart(ctxGauss, {
+            type: 'scatter',
+            data: {
+              datasets: [
+                {
+                  type: 'bar',
+                  label: 'Frecuencia',
+                  data: dataHistograma,
+                  backgroundColor: 'rgba(10,132,255,0.5)',
+                  borderColor: 'rgba(10,132,255,0.8)',
+                  borderWidth: 1,
+                  borderRadius: 4,
+                  barPercentage: 1,
+                  categoryPercentage: 1
+                },
+                {
+                  type: 'line',
+                  label: 'Distribución normal',
+                  data: dataLinea,
+                  borderColor: '#FF9F0A',
+                  borderWidth: 2.5,
+                  pointRadius: 0,
+                  fill: false,
+                  tension: 0.4
+                }
+              ]
+            },
+            options: {
+              responsive: true,
+              maintainAspectRatio: false,
+              plugins: {
+                legend: { labels: { color: 'rgba(255,255,255,0.7)' } },
+                tooltip: {
+                  backgroundColor: 'rgba(20,20,30,0.95)',
+                  titleColor: 'white',
+                  bodyColor: 'rgba(255,255,255,0.7)',
+                  borderColor: 'rgba(255,255,255,0.1)',
+                  borderWidth: 1,
+                  borderRadius: 12
+                }
+              },
+              scales: {
+                x: {
+                  type: 'linear',
+                  title: { display: true, text: 'Horas', color: 'rgba(255,255,255,0.5)' },
+                  ticks: { color: 'rgba(255,255,255,0.5)' },
+                  grid: { color: 'rgba(255,255,255,0.05)' }
+                },
+                y: {
+                  title: { display: true, text: 'Frecuencia', color: 'rgba(255,255,255,0.5)' },
+                  ticks: { color: 'rgba(255,255,255,0.5)' },
+                  grid: { color: 'rgba(255,255,255,0.05)' }
+                }
+              }
+            }
+          });
+
+          // --- DIAGRAMA DE DISPERSIÓN ---
+          const { m, b } = regresionLineal(cantidades, tiempos);
+          currentRegresion = { m, b };
+          const r2Val = r2(cantidades, tiempos, m, b);
+          
+          let semaforo = '🔴';
+          if (r2Val > 0.7) semaforo = '🟢';
+          else if (r2Val >= 0.4) semaforo = '🟡';
+          
+          document.getElementById('val-r2').textContent = `${r2Val.toFixed(2)} ${semaforo}`;
+          
+          const signoB = b >= 0 ? '+' : '-';
+          document.getElementById('val-ecuacion').textContent = `T = ${m.toFixed(3)} × cant ${signoB} ${Math.abs(b).toFixed(2)}`;
+
+          const xMin = Math.min(...cantidades);
+          const xMax = Math.max(...cantidades);
+          const lineaRegresion = [
+            { x: xMin, y: m * xMin + b },
+            { x: xMax, y: m * xMax + b }
+          ];
+
+          const scatterData = cantidades.map((c, i) => ({ x: c, y: tiempos[i] }));
+
+          const ctxScatter = document.getElementById('scatterChart').getContext('2d');
+          scatterChartInstance = new Chart(ctxScatter, {
+            type: 'scatter',
+            data: {
+              datasets: [
+                {
+                  label: 'Pedidos',
+                  data: scatterData,
+                  backgroundColor: 'rgba(10,132,255,0.6)',
+                  pointRadius: 6,
+                  pointHoverRadius: 8
+                },
+                {
+                  label: 'Línea de regresión',
+                  data: lineaRegresion,
+                  type: 'line',
+                  borderColor: '#34C759',
+                  borderWidth: 2,
+                  pointRadius: 0,
+                  fill: false
+                }
+              ]
+            },
+            options: {
+              responsive: true,
+              maintainAspectRatio: false,
+              plugins: {
+                legend: { labels: { color: 'rgba(255,255,255,0.7)' } },
+                tooltip: {
+                  backgroundColor: 'rgba(20,20,30,0.95)',
+                  titleColor: 'white',
+                  bodyColor: 'rgba(255,255,255,0.7)',
+                  borderColor: 'rgba(255,255,255,0.1)',
+                  borderWidth: 1,
+                  borderRadius: 12
+                }
+              },
+              scales: {
+                x: {
+                  type: 'linear',
+                  title: { display: true, text: 'Cantidad de stickers', color: 'rgba(255,255,255,0.5)' },
+                  ticks: { color: 'rgba(255,255,255,0.5)' },
+                  grid: { color: 'rgba(255,255,255,0.05)' }
+                },
+                y: {
+                  title: { display: true, text: 'Tiempo (hrs)', color: 'rgba(255,255,255,0.5)' },
+                  ticks: { color: 'rgba(255,255,255,0.5)' },
+                  grid: { color: 'rgba(255,255,255,0.05)' }
+                }
+              }
+            }
+          });
+
+          // Reiniciar input predictor
+          document.getElementById('predict-input').value = '';
+          document.getElementById('predict-result').textContent = '-- horas';
+
+          // --- GRÁFICA DE CONTROL X-R ---
+          if (xBarChartInstance) xBarChartInstance.destroy();
+          if (rChartInstance) rChartInstance.destroy();
+          
+          if (tiempos.length >= 10) {
+            const tamSubgrupo = 5;
+            const subgrupos = [];
+
+            for(let i = 0; i < tiempos.length; i += tamSubgrupo) {
+              const grupo = tiempos.slice(i, i + tamSubgrupo);
+              if(grupo.length >= 2) {
+                subgrupos.push({
+                  xBar: media(grupo),
+                  rango: Math.max(...grupo) - Math.min(...grupo)
+                });
+              }
+            }
+
+            const A2 = 0.577, D3 = 0, D4 = 2.114;
+            const xBarMedia = media(subgrupos.map(s => s.xBar));
+            const rMedia = media(subgrupos.map(s => s.rango));
+            const LCSX = xBarMedia + A2 * rMedia;
+            const LCIX = xBarMedia - A2 * rMedia;
+            const LCSR = D4 * rMedia;
+            const LCIR = D3 * rMedia;
+
+            const labelsXR = subgrupos.map((_, i) => `Grupo ${i+1}`);
+            
+            const pointColorsX = subgrupos.map(s => s.xBar > LCSX || s.xBar < LCIX ? '#FF3B30' : '#0A84FF');
+            const pointColorsR = subgrupos.map(s => s.rango > LCSR || s.rango < LCIR ? '#FF3B30' : '#FF9F0A');
+
+            const ctxXBar = document.getElementById('xBarChart').getContext('2d');
+            xBarChartInstance = new Chart(ctxXBar, {
+              type: 'line',
+              data: {
+                labels: labelsXR,
+                datasets: [
+                  {
+                    label: 'X̄ Media',
+                    data: subgrupos.map(s => s.xBar),
+                    borderColor: '#0A84FF',
+                    backgroundColor: 'rgba(10,132,255,0.1)',
+                    borderWidth: 2,
+                    pointRadius: 5,
+                    pointBackgroundColor: pointColorsX,
+                    fill: true,
+                    tension: 0.3
+                  },
+                  {
+                    label: `LCS = ${LCSX.toFixed(2)}`,
+                    data: Array(subgrupos.length).fill(LCSX),
+                    borderColor: '#FF3B30',
+                    borderWidth: 1.5,
+                    borderDash: [6, 3],
+                    pointRadius: 0,
+                    fill: false
+                  },
+                  {
+                    label: `X̄ = ${xBarMedia.toFixed(2)}`,
+                    data: Array(subgrupos.length).fill(xBarMedia),
+                    borderColor: '#34C759',
+                    borderWidth: 1.5,
+                    borderDash: [4, 4],
+                    pointRadius: 0,
+                    fill: false
+                  },
+                  {
+                    label: `LCI = ${LCIX.toFixed(2)}`,
+                    data: Array(subgrupos.length).fill(LCIX),
+                    borderColor: '#FF3B30',
+                    borderWidth: 1.5,
+                    borderDash: [6, 3],
+                    pointRadius: 0,
+                    fill: false
+                  }
+                ]
+              },
+              options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                  legend: { labels: { color: 'rgba(255,255,255,0.7)' } },
+                  title: { display: true, text: 'Gráfica X̄ (Medias)', color: 'white' }
+                },
+                scales: {
+                  x: { ticks: { color: 'rgba(255,255,255,0.5)' }, grid: { color: 'rgba(255,255,255,0.05)' } },
+                  y: { ticks: { color: 'rgba(255,255,255,0.5)' }, grid: { color: 'rgba(255,255,255,0.05)' } }
+                }
+              }
+            });
+
+            const ctxR = document.getElementById('rChart').getContext('2d');
+            rChartInstance = new Chart(ctxR, {
+              type: 'line',
+              data: {
+                labels: labelsXR,
+                datasets: [
+                  {
+                    label: 'R Rango',
+                    data: subgrupos.map(s => s.rango),
+                    borderColor: '#FF9F0A',
+                    backgroundColor: 'rgba(255,159,10,0.1)',
+                    borderWidth: 2,
+                    pointRadius: 5,
+                    pointBackgroundColor: pointColorsR,
+                    fill: true,
+                    tension: 0.3
+                  },
+                  {
+                    label: `LCS = ${LCSR.toFixed(2)}`,
+                    data: Array(subgrupos.length).fill(LCSR),
+                    borderColor: '#FF3B30',
+                    borderWidth: 1.5,
+                    borderDash: [6, 3],
+                    pointRadius: 0,
+                    fill: false
+                  },
+                  {
+                    label: `R̄ = ${rMedia.toFixed(2)}`,
+                    data: Array(subgrupos.length).fill(rMedia),
+                    borderColor: '#34C759',
+                    borderWidth: 1.5,
+                    borderDash: [4, 4],
+                    pointRadius: 0,
+                    fill: false
+                  },
+                  {
+                    label: `LCI = ${LCIR.toFixed(2)}`,
+                    data: Array(subgrupos.length).fill(Math.max(0, LCIR)),
+                    borderColor: '#FF3B30',
+                    borderWidth: 1.5,
+                    borderDash: [6, 3],
+                    pointRadius: 0,
+                    fill: false
+                  }
+                ]
+              },
+              options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                  legend: { labels: { color: 'rgba(255,255,255,0.7)' } },
+                  title: { display: true, text: 'Gráfica R (Rangos)', color: 'white' }
+                },
+                scales: {
+                  x: { ticks: { color: 'rgba(255,255,255,0.5)' }, grid: { color: 'rgba(255,255,255,0.05)' } },
+                  y: { ticks: { color: 'rgba(255,255,255,0.5)' }, grid: { color: 'rgba(255,255,255,0.05)' } }
+                }
+              }
+            });
+
+            const fueraDeControl = subgrupos.filter(s => 
+              s.xBar > LCSX || s.xBar < LCIX || s.rango > LCSR || s.rango < LCIR
+            );
+
+            const alertDiv = document.getElementById('control-alert');
+            alertDiv.style.display = 'block';
+            if(fueraDeControl.length > 0) {
+              alertDiv.style.background = 'rgba(255,59,48,0.1)';
+              alertDiv.style.border = '1px solid rgba(255,59,48,0.3)';
+              alertDiv.style.color = '#FF3B30';
+              alertDiv.innerHTML = `⚠️ ${fueraDeControl.length} subgrupo(s) fuera de control estadístico`;
+            } else {
+              alertDiv.style.background = 'rgba(52,199,89,0.1)';
+              alertDiv.style.border = '1px solid rgba(52,199,89,0.3)';
+              alertDiv.style.color = '#34C759';
+              alertDiv.innerHTML = `🟢 Todo el proceso está bajo control estadístico`;
+            }
+          } else {
+            const chartDivs = [document.getElementById('xBarChart'), document.getElementById('rChart')];
+            chartDivs.forEach(canvas => {
+              const ctx = canvas.getContext('2d');
+              ctx.clearRect(0,0, canvas.width, canvas.height);
+              ctx.fillStyle = 'rgba(255,255,255,0.4)';
+              ctx.font = '13px sans-serif';
+              ctx.textAlign = 'center';
+              ctx.textBaseline = 'middle';
+              ctx.fillText('Se necesitan al menos 10 pedidos completados para el análisis de control estadístico', canvas.width/2, canvas.height/2);
+            });
+            document.getElementById('control-alert').style.display = 'none';
+          }
+
+          // --- Cp / Cpk ---
+          window.__tiemposActuales = tiempos;
+          calcularYMostrarCpCpk();
+        }
+      }
+    }
+
+    function interpretarCp(val) {
+      if(val >= 1.67) return { color: '#34C759', texto: 'Proceso excelente' };
+      if(val >= 1.33) return { color: '#34C759', texto: 'Proceso capaz' };
+      if(val >= 1.00) return { color: '#FF9F0A', texto: 'Proceso marginalmente capaz' };
+      return { color: '#FF3B30', texto: 'Proceso no capaz — requiere mejora' };
+    }
+
+    function dibujarGauge(canvasId, valor) {
+      const canvas = document.getElementById(canvasId);
+      if(!canvas) return;
+      const ctx = canvas.getContext('2d');
+      const w = canvas.width = 300;
+      const h = canvas.height = 150;
+      
+      ctx.clearRect(0, 0, w, h);
+      
+      const cx = w / 2;
+      const cy = h - 20;
+      const r = 100;
+      
+      ctx.lineWidth = 20;
+      ctx.lineCap = 'butt';
+      
+      // Zona Roja (0 a 1.0 -> 0 a ~0.4)
+      ctx.beginPath();
+      ctx.arc(cx, cy, r, Math.PI, Math.PI + Math.PI * 0.4);
+      ctx.strokeStyle = '#FF3B30';
+      ctx.stroke();
+      
+      // Zona Amarilla (1.0 a 1.33 -> 0.4 a ~0.6)
+      ctx.beginPath();
+      ctx.arc(cx, cy, r, Math.PI + Math.PI * 0.4, Math.PI + Math.PI * 0.6);
+      ctx.strokeStyle = '#FF9F0A';
+      ctx.stroke();
+
+      // Zona Verde (1.33 a ... -> 0.6 a 1.0)
+      ctx.beginPath();
+      ctx.arc(cx, cy, r, Math.PI + Math.PI * 0.6, Math.PI * 2);
+      ctx.strokeStyle = '#34C759';
+      ctx.stroke();
+      
+      // Aguja
+      let angulo = Math.PI;
+      if (valor < 1.0) {
+        angulo = Math.PI + (valor / 1.0) * (Math.PI * 0.4);
+      } else if (valor < 1.33) {
+        angulo = Math.PI + Math.PI * 0.4 + ((valor - 1.0) / 0.33) * (Math.PI * 0.2);
+      } else {
+        angulo = Math.PI + Math.PI * 0.6 + Math.min(1, (valor - 1.33) / 1.67) * (Math.PI * 0.4);
+      }
+
+      ctx.beginPath();
+      ctx.moveTo(cx, cy);
+      const agujaLongitud = r - 5;
+      ctx.lineTo(cx + Math.cos(angulo) * agujaLongitud, cy + Math.sin(angulo) * agujaLongitud);
+      ctx.strokeStyle = '#FFFFFF';
+      ctx.lineWidth = 4;
+      ctx.stroke();
+      
+      ctx.beginPath();
+      ctx.arc(cx, cy, 8, 0, Math.PI*2);
+      ctx.fillStyle = '#FFFFFF';
+      ctx.fill();
+    }
+
+    function calcularYMostrarCpCpk() {
+      const tiempos = window.__tiemposActuales;
+      if(!tiempos || tiempos.length < 2) return;
+      
+      const lse = parseFloat(document.getElementById('cpk-lse').value) || 4;
+      const lie = parseFloat(document.getElementById('cpk-lie').value) || 0.5;
+
+      const sigma = desviacion(tiempos);
+      const mu = media(tiempos);
+      
+      if(sigma === 0) return;
+
+      const Cp = Math.max(0, (lse - lie) / (6 * sigma));
+      const Cpu = (lse - mu) / (3 * sigma);
+      const Cpl = (mu - lie) / (3 * sigma);
+      const Cpk = Math.max(0, Math.min(Cpu, Cpl));
+
+      document.getElementById('val-cp').textContent = `Cp = ${Cp.toFixed(2)}`;
+      document.getElementById('val-cpk').textContent = `Cpk = ${Cpk.toFixed(2)}`;
+
+      const infoCp = interpretarCp(Cp);
+      const stCp = document.getElementById('status-cp');
+      stCp.textContent = infoCp.texto;
+      stCp.style.color = infoCp.color;
+
+      const infoCpk = interpretarCp(Cpk);
+      const stCpk = document.getElementById('status-cpk');
+      stCpk.textContent = (Cpk >= 1.33) ? '🟢 Proceso centrado y capaz' : infoCpk.texto;
+      stCpk.style.color = infoCpk.color;
+
+      dibujarGauge('gaugeCp', Cp);
+      dibujarGauge('gaugeCpk', Cpk);
+    }
+
+    // Listener para el predictor interactivo y CpK
+    document.addEventListener('DOMContentLoaded', () => {
+      document.body.addEventListener('click', (e) => {
+        if (e.target && e.target.id === 'btn-calcular-cpk') {
+          calcularYMostrarCpCpk();
+        }
+      });
+      document.body.addEventListener('input', (e) => {
+        if (e.target && e.target.id === 'predict-input') {
+          const val = parseFloat(e.target.value);
+          if (!isNaN(val) && val > 0) {
+            const {m, b} = currentRegresion;
+            let est = m * val + b;
+            if (est < 0) est = 0;
+            document.getElementById('predict-result').textContent = est.toFixed(1) + ' horas';
+          } else {
+            document.getElementById('predict-result').textContent = '-- horas';
+          }
+        }
+      });
+
+      document.body.addEventListener('focusin', (e) => {
+        if (e.target && e.target.id === 'predict-input') {
+          e.target.style.borderColor = 'rgba(255,255,255,0.4)';
+        }
+      });
+      document.body.addEventListener('focusout', (e) => {
+        if (e.target && e.target.id === 'predict-input') {
+          e.target.style.borderColor = 'rgba(255,255,255,0.15)';
+        }
+      });
+    });
+
+    function cambiarPeriodo(periodo) {
+      if (periodoActual === periodo) return;
+      periodoActual = periodo;
+      
+      document.querySelectorAll('.period-btn').forEach(btn => {
+        if (btn.getAttribute('data-period') === periodo) {
+          btn.classList.add('active');
+        } else {
+          btn.classList.remove('active');
+        }
+      });
+      
+      cargarEstadisticas();
+    }
+
+    // ─── FUNCIONES DE REPORTES Y DESCARGA ───
+    function generarMeses() {
+      const meses = [];
+      const ahora = new Date();
+      for(let i = 0; i < 12; i++) {
+        const fecha = new Date(ahora.getFullYear(), ahora.getMonth() - i, 1);
+        meses.push({
+          valor: `${fecha.getFullYear()}-${String(fecha.getMonth()+1).padStart(2,'0')}`,
+          label: fecha.toLocaleDateString('es-MX', { month: 'long', year: 'numeric' })
+        });
+      }
+      return meses;
+    }
+
+    async function cargarMesesDisponibles() {
+      try {
+        const res = await fetch(`${API_URL}/api/estadisticas?periodo=todo`);
+        if (!res.ok) throw new Error('Error al cargar datos globales');
+        const data = await res.json();
+        
+        // Determinar array de historial (ya sea array en raíz o anidado en tendencia)
+        let historialMeses = [];
+        if (data.tendencia && data.tendencia.por_mes) historialMeses = data.tendencia.por_mes;
+        else if (data.por_mes) historialMeses = data.por_mes;
+
+        const grid = document.getElementById('reportes-grid');
+        grid.innerHTML = '';
+        
+        if (!Array.isArray(historialMeses) || historialMeses.length === 0) {
+          grid.innerHTML = '<div style="color: rgba(255,255,255,0.5); font-size: 13px;">No hay reportes ni datos mensuales aún.</div>';
+          cargarAlmacenamiento(0);
+          return;
+        }
+
+        const meses12 = generarMeses();
+        let totalPedidos = 0;
+
+        historialMeses.forEach(mesData => {
+          totalPedidos += mesData.pedidos;
+          const matchLabel = meses12.find(m => m.valor === mesData.mes);
+          // Fallback simple si el mes devuelto es muy viejo
+          const labelBonito = matchLabel ? matchLabel.label : mesData.mes;
+          
+          const card = document.createElement('div');
+          card.id = `tarjeta-mes-${mesData.mes}`;
+          card.style.background = 'rgba(255,255,255,0.04)';
+          card.style.border = '1px solid rgba(255,255,255,0.08)';
+          card.style.borderRadius = '16px';
+          card.style.padding = '16px';
+          card.style.transition = 'all 300ms ease';
+          
+          card.innerHTML = `
+            <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 16px;">
+              <div>
+                <div style="font-size: 15px; font-weight: 600; text-transform: capitalize;">${labelBonito}</div>
+                <div style="font-size: 13px; color: rgba(255,255,255,0.5); margin-top: 4px;">📦 ${mesData.pedidos} pedidos</div>
+              </div>
+            </div>
+            <div style="display: flex; gap: 8px;">
+              <button id="btn-export-${mesData.mes}" class="btn btn-secondary" style="flex: 1;" onclick="descargarCSV('${mesData.mes}')">⬇ Descarga CSV</button>
+              <button class="btn btn-danger" onclick="mostrarModalEliminar('${mesData.mes}', '${labelBonito}')">🗑 Eliminar</button>
+            </div>
+          `;
+          
+          card.onmouseenter = () => card.style.borderColor = 'rgba(255,255,255,0.2)';
+          card.onmouseleave = () => card.style.borderColor = 'rgba(255,255,255,0.08)';
+          grid.appendChild(card);
+        });
+
+        cargarAlmacenamiento(totalPedidos);
+      } catch(err) {
+        console.error(err);
+        document.getElementById('reportes-grid').innerHTML = '<div style="color: #FF9F0A; font-size: 13px;">Error de conexión. Mostrando caché o sin datos.</div>';
+      }
+    }
+
+    function descargarCSV(mes) {
+      const btn = document.getElementById(`btn-export-${mes}`);
+      if (!btn) return;
+      const originalText = btn.innerHTML;
+      btn.innerHTML = '⬇ Descargando...';
+      btn.disabled = true;
+      
+      // Simular tiempo de carga por UX (2s para que vuelva a la normalidad después de pedir el CSV)
+      setTimeout(() => {
+        window.location.href = `${API_URL}/api/pedidos/exportar?mes=${mes}`;
+        btn.innerHTML = '✓ Descargado';
+        btn.style.color = '#34C759';
+        setTimeout(() => {
+           btn.innerHTML = originalText;
+           btn.style.color = '';
+           btn.disabled = false;
+        }, 2000);
+      }, 500);
+    }
+
+    let mesAEliminar = null;
+    let timerEliminar = null;
+    
+    function mostrarModalEliminar(mes, nombre) {
+      mesAEliminar = mes;
+      document.getElementById('mes-eliminar-nombre').textContent = nombre;
+      const btnConfirmar = document.getElementById('btn-confirmar-eliminar');
+      btnConfirmar.disabled = true;
+      btnConfirmar.innerHTML = 'Eliminar (3s)';
+      
+      document.getElementById('modal-eliminar-mes').classList.add('visible');
+      
+      let sec = 3;
+      timerEliminar = setInterval(() => {
+        sec--;
+        if(sec > 0) {
+          btnConfirmar.innerHTML = `Eliminar (${sec}s)`;
+        } else {
+          clearInterval(timerEliminar);
+          btnConfirmar.innerHTML = 'Eliminar';
+          btnConfirmar.disabled = false;
+        }
+      }, 1000);
+    }
+    
+    function cerrarModalEliminar() {
+      document.getElementById('modal-eliminar-mes').classList.remove('visible');
+      if (timerEliminar) clearInterval(timerEliminar);
+      mesAEliminar = null;
+    }
+    
+    async function confirmarEliminarMes() {
+      if(!mesAEliminar) return;
+      const btn = document.getElementById('btn-confirmar-eliminar');
+      btn.innerHTML = 'Eliminando...';
+      btn.disabled = true;
+      
+      try {
+        const res = await fetch(`${API_URL}/api/pedidos/mes?mes=${mesAEliminar}`, { method: 'DELETE' });
+        if(!res.ok) throw new Error('Error al eliminar');
+        
+        cerrarModalEliminar();
+        
+        const card = document.getElementById(`tarjeta-mes-${mesAEliminar}`);
+        if(card) {
+          card.style.opacity = '0';
+          setTimeout(() => card.remove(), 300);
+        }
+        
+        setTimeout(() => {
+          cargarEstadisticas();
+          cargarMesesDisponibles();
+        }, 300);
+      } catch(e) {
+        alert('Error: ' + e.message);
+        cerrarModalEliminar();
+      }
+    }
+
+    function cargarAlmacenamiento(totalPedidos) {
+       const estMB = (totalPedidos * 0.005).toFixed(2);
+       const capacidad = 500;
+       let pct = (estMB / capacidad) * 100;
+       if (pct > 100) pct = 100;
+
+       document.getElementById('storage-pedidos').textContent = `Total pedidos guardados: ${totalPedidos}`;
+       document.getElementById('storage-mb').textContent = `Espacio estimado: ~${estMB} MB de ${capacidad} MB`;
+       document.getElementById('storage-pct').textContent = `${pct.toFixed(2)}%`;
+       document.getElementById('storage-bar').style.width = `${pct}%`;
+    }
+
+    function mostrarPantallaAcceso() {
+       const screen = document.getElementById('access-screen');
+       screen.style.display = 'block';
+       screen.style.opacity = '1';
+    }
+
+    function mostrarContenido() {
+       const main = document.getElementById('main-content');
+       if(main) main.style.display = 'block';
+    }
+
+
+
+    document.addEventListener('DOMContentLoaded', async () => {
+      // 1. Verificar sesión
+      if(!sessionStorage.getItem('hss_auth')) {
+        mostrarPantallaAcceso();
+        return;
+      }
+
+      // 2. Mostrar contenido
+      mostrarContenido();
+
+      // 3. Cargar estadísticas con período por defecto
+      await cargarEstadisticas('mes');
+
+      // 4. Cargar lista de meses para reportes
+      await cargarMesesDisponibles();
+    });
+  </script>
+
+
+</body>
+</html>
